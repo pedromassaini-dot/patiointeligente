@@ -298,6 +298,7 @@ export const actions = {
       ),
     }));
   },
+  venderLote(loteId: string, precoVenda: number) {
     setState((s) => ({
       ...s,
       lotes: s.lotes.map((l) =>
