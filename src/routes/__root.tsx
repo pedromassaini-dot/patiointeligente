@@ -72,14 +72,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Pátio Inteligente — Gestão de Sucata de Alumínio" },
+      { name: "description", content: "Sistema integrado entre galpão e escritório para gestão de lotes de sucata de alumínio: entradas, beneficiamento, estoque e vendas." },
+      { name: "author", content: "Pátio Inteligente" },
+      { property: "og:title", content: "Pátio Inteligente" },
+      { property: "og:description", content: "Gestão em tempo real do pátio de sucata de alumínio." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       {
