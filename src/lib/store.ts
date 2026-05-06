@@ -217,6 +217,7 @@ export const actions = {
     const codigo = `LT-${String(1000 + state.lotes.length + 1)}`;
     const dataEntrada = new Date().toISOString();
     const lote: Lote = {
+      custoBeneficiamento: 0,
       id,
       codigo,
       tipoMaterialId: input.tipoMaterialId,
