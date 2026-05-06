@@ -116,6 +116,7 @@ function generateSeedLotes(): Lote[] {
       i === 1 ? "beneficiamento" : i === 7 ? "vendido" : "estoque";
     const pesoAtual = status === "beneficiamento" ? peso * 0.92 : peso;
     lotes.push({
+      custoBeneficiamento: 0,
       id: `l${i + 1}`,
       codigo: `LT-${String(1000 + i)}`,
       tipoMaterialId: tipo.id,
