@@ -38,7 +38,8 @@ export type Lote = {
   fornecedorId: string;
   pesoEntrada: number;
   pesoAtual: number;
-  custoUnitario: number; // R$/kg
+  custoUnitario: number; // R$/kg (preço de compra)
+  custoBeneficiamento: number; // R$ total
   localizacao: string;
   status: StatusLote;
   fotos: string[]; // dataURLs
@@ -48,6 +49,30 @@ export type Lote = {
   precoVenda?: number; // R$/kg
   movimentacoes: Movimentacao[];
 };
+
+// ===== Cálculos automáticos =====
+export function custoTotalCompra(l: Pick<Lote, "pesoEntrada" | "custoUnitario">) {
+  return l.pesoEntrada * l.custoUnitario;
+}
+export function perdaKg(l: Pick<Lote, "pesoEntrada" | "pesoAtual">) {
+  return Math.max(0, l.pesoEntrada - l.pesoAtual);
+}
+export function perdaPercentual(l: Pick<Lote, "pesoEntrada" | "pesoAtual">) {
+  return l.pesoEntrada > 0 ? (perdaKg(l) / l.pesoEntrada) * 100 : 0;
+}
+export function custoFinalKg(l: Lote) {
+  if (l.pesoAtual <= 0) return l.custoUnitario;
+  return (custoTotalCompra(l) + (l.custoBeneficiamento || 0)) / l.pesoAtual;
+}
+export function receitaTotal(pesoVendido: number, precoKgVenda: number) {
+  return pesoVendido * precoKgVenda;
+}
+export function custoProporcional(pesoVendido: number, custoFinal: number) {
+  return pesoVendido * custoFinal;
+}
+export function margemEstimada(pesoVendido: number, precoKgVenda: number, custoFinal: number) {
+  return receitaTotal(pesoVendido, precoKgVenda) - custoProporcional(pesoVendido, custoFinal);
+}
 
 type State = {
   user: User | null;
