@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader, StatusBadge, inputCls, btnPrimary, btnSecondary, Field } from "@/components/ui-bits";
-import { useStore, fmtBRL, fmtKg, fmtDateTime, actions } from "@/lib/store";
+import { useStore, fmtBRL, fmtKg, fmtDateTime, actions, custoTotalCompra, custoFinalKg, perdaKg as perdaKgFn, perdaPercentual, margemEstimada } from "@/lib/store";
 import { ArrowLeft, MapPin, Hammer, ShoppingCart, ImageOff } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -40,12 +40,13 @@ function LoteDetailPage() {
     );
   }
 
-  const valorTotal = lote.pesoAtual * lote.custoUnitario;
-  const perda = lote.pesoEntrada - lote.pesoAtual;
-  const margem =
-    lote.precoVenda
-      ? (lote.precoVenda - lote.custoUnitario) * lote.pesoAtual
-      : (tipo ? (tipo.precoMedioVenda - lote.custoUnitario) * lote.pesoAtual : 0);
+  const custoCompra = custoTotalCompra(lote);
+  const custoFinal = custoFinalKg(lote);
+  const valorTotal = lote.pesoAtual * custoFinal;
+  const perda = perdaKgFn(lote);
+  const perdaPct = perdaPercentual(lote);
+  const precoRef = lote.precoVenda ?? tipo?.precoMedioVenda ?? 0;
+  const margem = margemEstimada(lote.pesoAtual, precoRef, custoFinal);
 
   return (
     <AppLayout>
@@ -117,12 +118,22 @@ function LoteDetailPage() {
             {perda > 0 && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Perda</span>
-                <span className="font-medium text-warning-foreground">−{fmtKg(perda)}</span>
+                <span className="font-medium text-warning-foreground">−{fmtKg(perda)} ({perdaPct.toFixed(1)}%)</span>
               </div>
             )}
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Custo</span>
-              <span className="font-medium">{fmtBRL(lote.custoUnitario)}/kg</span>
+              <span className="text-muted-foreground">Custo compra</span>
+              <span className="font-medium">{fmtBRL(lote.custoUnitario)}/kg · {fmtBRL(custoCompra)}</span>
+            </div>
+            {lote.custoBeneficiamento > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Custo beneficiamento</span>
+                <span className="font-medium">{fmtBRL(lote.custoBeneficiamento)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Custo final</span>
+              <span className="font-medium">{fmtBRL(custoFinal)}/kg</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Valor total</span>

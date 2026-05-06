@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader, Field, inputCls, btnPrimary, StatusBadge } from "@/components/ui-bits";
-import { useStore, actions, fmtKg, fmtBRL, fmtDate } from "@/lib/store";
+import { useStore, actions, fmtKg, fmtBRL, fmtDate, custoFinalKg } from "@/lib/store";
 import { useState } from "react";
 import { ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
@@ -21,8 +21,9 @@ function VendaPage() {
   const lote = disponiveis.find((l) => l.id === loteId);
   const tipo = lote ? tipos.find((t) => t.id === lote.tipoMaterialId) : undefined;
   const precoNum = parseFloat(preco) || 0;
+  const custoFinal = lote ? custoFinalKg(lote) : 0;
   const receita = lote ? lote.pesoAtual * precoNum : 0;
-  const custo = lote ? lote.pesoAtual * lote.custoUnitario : 0;
+  const custo = lote ? lote.pesoAtual * custoFinal : 0;
   const margem = receita - custo;
 
   const submit = (e: React.FormEvent) => {
@@ -83,8 +84,8 @@ function VendaPage() {
                 <span className="font-medium">{fmtBRL(receita)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Custo</span>
-                <span className="font-medium">{fmtBRL(custo)}</span>
+                <span className="text-muted-foreground">Custo proporcional</span>
+                <span className="font-medium">{fmtBRL(custo)} <span className="text-xs text-muted-foreground">({fmtBRL(custoFinal)}/kg)</span></span>
               </div>
               <div className="flex justify-between pt-1 border-t">
                 <span className="text-muted-foreground">Margem</span>
@@ -112,7 +113,7 @@ function VendaPage() {
               .sort((a, b) => +new Date(b.dataSaida ?? 0) - +new Date(a.dataSaida ?? 0))
               .map((l) => {
                 const t = tipos.find((x) => x.id === l.tipoMaterialId);
-                const m = (l.precoVenda! - l.custoUnitario) * l.pesoAtual;
+                const m = (l.precoVenda! - custoFinalKg(l)) * l.pesoAtual;
                 return (
                   <div key={l.id} className="flex items-center justify-between text-sm border-b last:border-0 pb-2">
                     <div>

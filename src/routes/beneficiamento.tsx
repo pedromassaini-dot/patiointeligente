@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader, Field, inputCls, btnPrimary, StatusBadge } from "@/components/ui-bits";
-import { useStore, actions, fmtKg } from "@/lib/store";
+import { useStore, actions, fmtKg, fmtBRL, custoTotalCompra, custoFinalKg } from "@/lib/store";
 import { useState } from "react";
 import { Hammer } from "lucide-react";
 import { toast } from "sonner";
@@ -16,24 +16,31 @@ function BeneficiamentoPage() {
 
   const [loteId, setLoteId] = useState("");
   const [pesoNovo, setPesoNovo] = useState("");
+  const [custoBenef, setCustoBenef] = useState("");
   const [obs, setObs] = useState("");
 
   const lote = elegiveis.find((l) => l.id === loteId);
   const tipo = lote ? tipos.find((t) => t.id === lote.tipoMaterialId) : undefined;
-  const perda = lote && pesoNovo ? lote.pesoAtual - parseFloat(pesoNovo) : 0;
-  const perdaPct = lote && pesoNovo ? (perda / lote.pesoAtual) * 100 : 0;
+  const pesoNum = parseFloat(pesoNovo) || 0;
+  const custoBenefNum = parseFloat(custoBenef) || 0;
+  const perda = lote && pesoNum ? lote.pesoAtual - pesoNum : 0;
+  const perdaPct = lote && pesoNum ? (perda / lote.pesoAtual) * 100 : 0;
+  const custoFinal =
+    lote && pesoNum > 0
+      ? (custoTotalCompra(lote) + (lote.custoBeneficiamento || 0) + custoBenefNum) / pesoNum
+      : 0;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const p = parseFloat(pesoNovo);
-    if (!lote || !p || p <= 0 || p > lote.pesoAtual) {
+    if (!lote || !pesoNum || pesoNum <= 0 || pesoNum > lote.pesoAtual) {
       toast.error("Peso inválido (deve ser menor que o peso atual).");
       return;
     }
-    actions.beneficiarLote(lote.id, p, obs);
+    actions.beneficiarLote(lote.id, pesoNum, custoBenefNum, obs);
     toast.success(`Beneficiamento registrado. Perda: ${fmtKg(perda)}`);
     setLoteId("");
     setPesoNovo("");
+    setCustoBenef("");
     setObs("");
   };
 
@@ -90,13 +97,30 @@ function BeneficiamentoPage() {
             />
           </Field>
 
-          {lote && pesoNovo && perda > 0 && (
-            <div className="rounded-md p-3 border border-warning/40 bg-warning/15 text-sm">
+          <Field label="Custo do beneficiamento (R$)" hint="Mão de obra, energia, etc.">
+            <input
+              className={inputCls}
+              type="number"
+              step="0.01"
+              min="0"
+              value={custoBenef}
+              onChange={(e) => setCustoBenef(e.target.value)}
+              placeholder="Ex: 50.00"
+              disabled={!lote}
+            />
+          </Field>
+
+          {lote && pesoNum > 0 && (
+            <div className="rounded-md p-3 border border-warning/40 bg-warning/15 text-sm space-y-1">
               <div className="flex justify-between">
                 <span>Perda calculada</span>
                 <span className="font-semibold">
                   {fmtKg(perda)} ({perdaPct.toFixed(1)}%)
                 </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Custo final</span>
+                <span className="font-semibold">{fmtBRL(custoFinal)}/kg</span>
               </div>
             </div>
           )}

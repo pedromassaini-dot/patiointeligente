@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader, Field, inputCls, btnPrimary, btnSecondary } from "@/components/ui-bits";
-import { useStore, actions } from "@/lib/store";
+import { useStore, actions, fmtBRL } from "@/lib/store";
 import { useState, useRef } from "react";
 import { Camera, X, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -123,6 +123,13 @@ function NovoLotePage() {
             </select>
           </Field>
         </div>
+
+        {parseFloat(peso) > 0 && parseFloat(custo) > 0 && (
+          <div className="rounded-md p-3 bg-primary/10 border border-primary/30 text-sm flex justify-between">
+            <span className="text-muted-foreground">Custo total da compra</span>
+            <span className="font-semibold">{fmtBRL(parseFloat(peso) * parseFloat(custo))}</span>
+          </div>
+        )}
 
         <Field label="Observações">
           <textarea
