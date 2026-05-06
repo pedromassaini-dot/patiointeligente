@@ -223,59 +223,6 @@ function DashboardPage() {
 
       <Scale className="hidden" />
 
-      <div className="grid lg:grid-cols-2 gap-4 mb-6">
-        <div className="bg-card rounded-xl border p-4">
-          <h3 className="text-sm font-semibold mb-4">Estoque por tipo de material (kg)</h3>
-          <div className="h-64">
-            <ResponsiveContainer>
-              <BarChart data={porTipo}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="nome" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
-                <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--popover)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                  }}
-                />
-                <Bar dataKey="peso" fill="var(--chart-1)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="bg-card rounded-xl border p-4">
-          <h3 className="text-sm font-semibold mb-4">Distribuição (lotes)</h3>
-          <div className="h-64">
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie
-                  data={porTipo.filter((p) => p.lotes > 0)}
-                  dataKey="lotes"
-                  nameKey="nome"
-                  innerRadius={50}
-                  outerRadius={90}
-                  paddingAngle={2}
-                >
-                  {porTipo.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--popover)",
-                    border: "1px solid var(--border)",
-                    borderRadius: 8,
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
       <div>
         <h3 className="text-sm font-semibold mb-3">Lotes recentes</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
