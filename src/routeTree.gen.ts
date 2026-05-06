@@ -13,6 +13,7 @@ import { Route as NovoLoteRouteImport } from './routes/novo-lote'
 import { Route as EstoqueRouteImport } from './routes/estoque'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoteIdRouteImport } from './routes/lote.$id'
 
 const NovoLoteRoute = NovoLoteRouteImport.update({
   id: '/novo-lote',
@@ -34,18 +35,25 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoteIdRoute = LoteIdRouteImport.update({
+  id: '/lote/$id',
+  path: '/lote/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
   '/novo-lote': typeof NovoLoteRoute
+  '/lote/$id': typeof LoteIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
   '/novo-lote': typeof NovoLoteRoute
+  '/lote/$id': typeof LoteIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
   '/novo-lote': typeof NovoLoteRoute
+  '/lote/$id': typeof LoteIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/estoque' | '/novo-lote'
+  fullPaths: '/' | '/dashboard' | '/estoque' | '/novo-lote' | '/lote/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/estoque' | '/novo-lote'
-  id: '__root__' | '/' | '/dashboard' | '/estoque' | '/novo-lote'
+  to: '/' | '/dashboard' | '/estoque' | '/novo-lote' | '/lote/$id'
+  id: '__root__' | '/' | '/dashboard' | '/estoque' | '/novo-lote' | '/lote/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +76,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   EstoqueRoute: typeof EstoqueRoute
   NovoLoteRoute: typeof NovoLoteRoute
+  LoteIdRoute: typeof LoteIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lote/$id': {
+      id: '/lote/$id'
+      path: '/lote/$id'
+      fullPath: '/lote/$id'
+      preLoaderRoute: typeof LoteIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   EstoqueRoute: EstoqueRoute,
   NovoLoteRoute: NovoLoteRoute,
+  LoteIdRoute: LoteIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
