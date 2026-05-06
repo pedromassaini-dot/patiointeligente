@@ -323,7 +323,29 @@ export const actions = {
       ),
     }));
   },
-  addFornecedor(f: Omit<Fornecedor, "id">) {
+  addFotos(loteId: string, fotos: string[]) {
+    if (fotos.length === 0) return;
+    setState((s) => ({
+      ...s,
+      lotes: s.lotes.map((l) =>
+        l.id === loteId ? { ...l, fotos: [...l.fotos, ...fotos] } : l
+      ),
+    }));
+  },
+  removeFoto(loteId: string, index: number) {
+    setState((s) => ({
+      ...s,
+      lotes: s.lotes.map((l) =>
+        l.id === loteId ? { ...l, fotos: l.fotos.filter((_, i) => i !== index) } : l
+      ),
+    }));
+  },
+  editLote(loteId: string, patch: Partial<Pick<Lote, "tipoMaterialId" | "fornecedorId" | "custoUnitario" | "localizacao" | "observacoes">>) {
+    setState((s) => ({
+      ...s,
+      lotes: s.lotes.map((l) => (l.id === loteId ? { ...l, ...patch } : l)),
+    }));
+  },
     setState((s) => ({
       ...s,
       fornecedores: [...s.fornecedores, { ...f, id: `f${Date.now()}` }],
