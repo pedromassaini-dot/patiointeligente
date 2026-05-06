@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as NovoLoteRouteImport } from './routes/novo-lote'
 import { Route as EstoqueRouteImport } from './routes/estoque'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as BeneficiamentoRouteImport } from './routes/beneficiamento'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoteIdRouteImport } from './routes/lote.$id'
 
@@ -30,6 +31,11 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BeneficiamentoRoute = BeneficiamentoRouteImport.update({
+  id: '/beneficiamento',
+  path: '/beneficiamento',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -43,6 +49,7 @@ const LoteIdRoute = LoteIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/beneficiamento': typeof BeneficiamentoRoute
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
   '/novo-lote': typeof NovoLoteRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/beneficiamento': typeof BeneficiamentoRoute
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
   '/novo-lote': typeof NovoLoteRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/beneficiamento': typeof BeneficiamentoRoute
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
   '/novo-lote': typeof NovoLoteRoute
@@ -65,14 +74,34 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/estoque' | '/novo-lote' | '/lote/$id'
+  fullPaths:
+    | '/'
+    | '/beneficiamento'
+    | '/dashboard'
+    | '/estoque'
+    | '/novo-lote'
+    | '/lote/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/estoque' | '/novo-lote' | '/lote/$id'
-  id: '__root__' | '/' | '/dashboard' | '/estoque' | '/novo-lote' | '/lote/$id'
+  to:
+    | '/'
+    | '/beneficiamento'
+    | '/dashboard'
+    | '/estoque'
+    | '/novo-lote'
+    | '/lote/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/beneficiamento'
+    | '/dashboard'
+    | '/estoque'
+    | '/novo-lote'
+    | '/lote/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  BeneficiamentoRoute: typeof BeneficiamentoRoute
   DashboardRoute: typeof DashboardRoute
   EstoqueRoute: typeof EstoqueRoute
   NovoLoteRoute: typeof NovoLoteRoute
@@ -102,6 +131,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/beneficiamento': {
+      id: '/beneficiamento'
+      path: '/beneficiamento'
+      fullPath: '/beneficiamento'
+      preLoaderRoute: typeof BeneficiamentoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -121,6 +157,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  BeneficiamentoRoute: BeneficiamentoRoute,
   DashboardRoute: DashboardRoute,
   EstoqueRoute: EstoqueRoute,
   NovoLoteRoute: NovoLoteRoute,
