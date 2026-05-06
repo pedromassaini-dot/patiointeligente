@@ -346,6 +346,7 @@ export const actions = {
       lotes: s.lotes.map((l) => (l.id === loteId ? { ...l, ...patch } : l)),
     }));
   },
+  addFornecedor(f: Omit<Fornecedor, "id">) {
     setState((s) => ({
       ...s,
       fornecedores: [...s.fornecedores, { ...f, id: `f${Date.now()}` }],
