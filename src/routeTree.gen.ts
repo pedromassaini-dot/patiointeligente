@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VendaRouteImport } from './routes/venda'
 import { Route as NovoLoteRouteImport } from './routes/novo-lote'
 import { Route as MovimentacoesRouteImport } from './routes/movimentacoes'
 import { Route as EstoqueRouteImport } from './routes/estoque'
@@ -17,6 +18,11 @@ import { Route as BeneficiamentoRouteImport } from './routes/beneficiamento'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as LoteIdRouteImport } from './routes/lote.$id'
 
+const VendaRoute = VendaRouteImport.update({
+  id: '/venda',
+  path: '/venda',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NovoLoteRoute = NovoLoteRouteImport.update({
   id: '/novo-lote',
   path: '/novo-lote',
@@ -60,6 +66,7 @@ export interface FileRoutesByFullPath {
   '/estoque': typeof EstoqueRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-lote': typeof NovoLoteRoute
+  '/venda': typeof VendaRoute
   '/lote/$id': typeof LoteIdRoute
 }
 export interface FileRoutesByTo {
@@ -69,6 +76,7 @@ export interface FileRoutesByTo {
   '/estoque': typeof EstoqueRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-lote': typeof NovoLoteRoute
+  '/venda': typeof VendaRoute
   '/lote/$id': typeof LoteIdRoute
 }
 export interface FileRoutesById {
@@ -79,6 +87,7 @@ export interface FileRoutesById {
   '/estoque': typeof EstoqueRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-lote': typeof NovoLoteRoute
+  '/venda': typeof VendaRoute
   '/lote/$id': typeof LoteIdRoute
 }
 export interface FileRouteTypes {
@@ -90,6 +99,7 @@ export interface FileRouteTypes {
     | '/estoque'
     | '/movimentacoes'
     | '/novo-lote'
+    | '/venda'
     | '/lote/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -99,6 +109,7 @@ export interface FileRouteTypes {
     | '/estoque'
     | '/movimentacoes'
     | '/novo-lote'
+    | '/venda'
     | '/lote/$id'
   id:
     | '__root__'
@@ -108,6 +119,7 @@ export interface FileRouteTypes {
     | '/estoque'
     | '/movimentacoes'
     | '/novo-lote'
+    | '/venda'
     | '/lote/$id'
   fileRoutesById: FileRoutesById
 }
@@ -118,11 +130,19 @@ export interface RootRouteChildren {
   EstoqueRoute: typeof EstoqueRoute
   MovimentacoesRoute: typeof MovimentacoesRoute
   NovoLoteRoute: typeof NovoLoteRoute
+  VendaRoute: typeof VendaRoute
   LoteIdRoute: typeof LoteIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/venda': {
+      id: '/venda'
+      path: '/venda'
+      fullPath: '/venda'
+      preLoaderRoute: typeof VendaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/novo-lote': {
       id: '/novo-lote'
       path: '/novo-lote'
@@ -182,6 +202,7 @@ const rootRouteChildren: RootRouteChildren = {
   EstoqueRoute: EstoqueRoute,
   MovimentacoesRoute: MovimentacoesRoute,
   NovoLoteRoute: NovoLoteRoute,
+  VendaRoute: VendaRoute,
   LoteIdRoute: LoteIdRoute,
 }
 export const routeTree = rootRouteImport
