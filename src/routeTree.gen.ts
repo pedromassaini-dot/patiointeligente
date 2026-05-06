@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VendaRouteImport } from './routes/venda'
+import { Route as TiposRouteImport } from './routes/tipos'
 import { Route as NovoLoteRouteImport } from './routes/novo-lote'
 import { Route as MovimentacoesRouteImport } from './routes/movimentacoes'
 import { Route as FornecedoresRouteImport } from './routes/fornecedores'
@@ -22,6 +23,11 @@ import { Route as LoteIdRouteImport } from './routes/lote.$id'
 const VendaRoute = VendaRouteImport.update({
   id: '/venda',
   path: '/venda',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TiposRoute = TiposRouteImport.update({
+  id: '/tipos',
+  path: '/tipos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NovoLoteRoute = NovoLoteRouteImport.update({
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/fornecedores': typeof FornecedoresRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-lote': typeof NovoLoteRoute
+  '/tipos': typeof TiposRoute
   '/venda': typeof VendaRoute
   '/lote/$id': typeof LoteIdRoute
 }
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/fornecedores': typeof FornecedoresRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-lote': typeof NovoLoteRoute
+  '/tipos': typeof TiposRoute
   '/venda': typeof VendaRoute
   '/lote/$id': typeof LoteIdRoute
 }
@@ -96,6 +104,7 @@ export interface FileRoutesById {
   '/fornecedores': typeof FornecedoresRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-lote': typeof NovoLoteRoute
+  '/tipos': typeof TiposRoute
   '/venda': typeof VendaRoute
   '/lote/$id': typeof LoteIdRoute
 }
@@ -109,6 +118,7 @@ export interface FileRouteTypes {
     | '/fornecedores'
     | '/movimentacoes'
     | '/novo-lote'
+    | '/tipos'
     | '/venda'
     | '/lote/$id'
   fileRoutesByTo: FileRoutesByTo
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/fornecedores'
     | '/movimentacoes'
     | '/novo-lote'
+    | '/tipos'
     | '/venda'
     | '/lote/$id'
   id:
@@ -131,6 +142,7 @@ export interface FileRouteTypes {
     | '/fornecedores'
     | '/movimentacoes'
     | '/novo-lote'
+    | '/tipos'
     | '/venda'
     | '/lote/$id'
   fileRoutesById: FileRoutesById
@@ -143,6 +155,7 @@ export interface RootRouteChildren {
   FornecedoresRoute: typeof FornecedoresRoute
   MovimentacoesRoute: typeof MovimentacoesRoute
   NovoLoteRoute: typeof NovoLoteRoute
+  TiposRoute: typeof TiposRoute
   VendaRoute: typeof VendaRoute
   LoteIdRoute: typeof LoteIdRoute
 }
@@ -154,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/venda'
       fullPath: '/venda'
       preLoaderRoute: typeof VendaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tipos': {
+      id: '/tipos'
+      path: '/tipos'
+      fullPath: '/tipos'
+      preLoaderRoute: typeof TiposRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/novo-lote': {
@@ -223,6 +243,7 @@ const rootRouteChildren: RootRouteChildren = {
   FornecedoresRoute: FornecedoresRoute,
   MovimentacoesRoute: MovimentacoesRoute,
   NovoLoteRoute: NovoLoteRoute,
+  TiposRoute: TiposRoute,
   VendaRoute: VendaRoute,
   LoteIdRoute: LoteIdRoute,
 }
