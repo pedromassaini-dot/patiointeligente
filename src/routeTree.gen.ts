@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as VendaRouteImport } from './routes/venda'
 import { Route as NovoLoteRouteImport } from './routes/novo-lote'
 import { Route as MovimentacoesRouteImport } from './routes/movimentacoes'
+import { Route as FornecedoresRouteImport } from './routes/fornecedores'
 import { Route as EstoqueRouteImport } from './routes/estoque'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BeneficiamentoRouteImport } from './routes/beneficiamento'
@@ -31,6 +32,11 @@ const NovoLoteRoute = NovoLoteRouteImport.update({
 const MovimentacoesRoute = MovimentacoesRouteImport.update({
   id: '/movimentacoes',
   path: '/movimentacoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FornecedoresRoute = FornecedoresRouteImport.update({
+  id: '/fornecedores',
+  path: '/fornecedores',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EstoqueRoute = EstoqueRouteImport.update({
@@ -64,6 +70,7 @@ export interface FileRoutesByFullPath {
   '/beneficiamento': typeof BeneficiamentoRoute
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
+  '/fornecedores': typeof FornecedoresRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-lote': typeof NovoLoteRoute
   '/venda': typeof VendaRoute
@@ -74,6 +81,7 @@ export interface FileRoutesByTo {
   '/beneficiamento': typeof BeneficiamentoRoute
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
+  '/fornecedores': typeof FornecedoresRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-lote': typeof NovoLoteRoute
   '/venda': typeof VendaRoute
@@ -85,6 +93,7 @@ export interface FileRoutesById {
   '/beneficiamento': typeof BeneficiamentoRoute
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
+  '/fornecedores': typeof FornecedoresRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-lote': typeof NovoLoteRoute
   '/venda': typeof VendaRoute
@@ -97,6 +106,7 @@ export interface FileRouteTypes {
     | '/beneficiamento'
     | '/dashboard'
     | '/estoque'
+    | '/fornecedores'
     | '/movimentacoes'
     | '/novo-lote'
     | '/venda'
@@ -107,6 +117,7 @@ export interface FileRouteTypes {
     | '/beneficiamento'
     | '/dashboard'
     | '/estoque'
+    | '/fornecedores'
     | '/movimentacoes'
     | '/novo-lote'
     | '/venda'
@@ -117,6 +128,7 @@ export interface FileRouteTypes {
     | '/beneficiamento'
     | '/dashboard'
     | '/estoque'
+    | '/fornecedores'
     | '/movimentacoes'
     | '/novo-lote'
     | '/venda'
@@ -128,6 +140,7 @@ export interface RootRouteChildren {
   BeneficiamentoRoute: typeof BeneficiamentoRoute
   DashboardRoute: typeof DashboardRoute
   EstoqueRoute: typeof EstoqueRoute
+  FornecedoresRoute: typeof FornecedoresRoute
   MovimentacoesRoute: typeof MovimentacoesRoute
   NovoLoteRoute: typeof NovoLoteRoute
   VendaRoute: typeof VendaRoute
@@ -155,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/movimentacoes'
       fullPath: '/movimentacoes'
       preLoaderRoute: typeof MovimentacoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fornecedores': {
+      id: '/fornecedores'
+      path: '/fornecedores'
+      fullPath: '/fornecedores'
+      preLoaderRoute: typeof FornecedoresRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/estoque': {
@@ -200,6 +220,7 @@ const rootRouteChildren: RootRouteChildren = {
   BeneficiamentoRoute: BeneficiamentoRoute,
   DashboardRoute: DashboardRoute,
   EstoqueRoute: EstoqueRoute,
+  FornecedoresRoute: FornecedoresRoute,
   MovimentacoesRoute: MovimentacoesRoute,
   NovoLoteRoute: NovoLoteRoute,
   VendaRoute: VendaRoute,
