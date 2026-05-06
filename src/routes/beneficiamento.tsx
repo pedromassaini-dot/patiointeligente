@@ -97,13 +97,30 @@ function BeneficiamentoPage() {
             />
           </Field>
 
-          {lote && pesoNovo && perda > 0 && (
-            <div className="rounded-md p-3 border border-warning/40 bg-warning/15 text-sm">
+          <Field label="Custo do beneficiamento (R$)" hint="Mão de obra, energia, etc.">
+            <input
+              className={inputCls}
+              type="number"
+              step="0.01"
+              min="0"
+              value={custoBenef}
+              onChange={(e) => setCustoBenef(e.target.value)}
+              placeholder="Ex: 50.00"
+              disabled={!lote}
+            />
+          </Field>
+
+          {lote && pesoNum > 0 && (
+            <div className="rounded-md p-3 border border-warning/40 bg-warning/15 text-sm space-y-1">
               <div className="flex justify-between">
                 <span>Perda calculada</span>
                 <span className="font-semibold">
                   {fmtKg(perda)} ({perdaPct.toFixed(1)}%)
                 </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Custo final</span>
+                <span className="font-semibold">{fmtBRL(custoFinal)}/kg</span>
               </div>
             </div>
           )}
