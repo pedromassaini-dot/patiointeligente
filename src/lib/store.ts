@@ -268,7 +268,7 @@ export const actions = {
       ),
     }));
   },
-  beneficiarLote(loteId: string, novoPeso: number, observacao?: string) {
+  beneficiarLote(loteId: string, novoPeso: number, custoBenef: number = 0, observacao?: string) {
     setState((s) => ({
       ...s,
       lotes: s.lotes.map((l) =>
@@ -276,6 +276,7 @@ export const actions = {
           ? {
               ...l,
               pesoAtual: novoPeso,
+              custoBeneficiamento: (l.custoBeneficiamento || 0) + (custoBenef || 0),
               status: "beneficiamento" as StatusLote,
               movimentacoes: [
                 ...l.movimentacoes,
@@ -285,6 +286,7 @@ export const actions = {
                   tipo: "beneficiamento",
                   descricao:
                     `Beneficiamento: ${l.pesoAtual.toFixed(1)} → ${novoPeso.toFixed(1)} kg` +
+                    (custoBenef ? ` · custo R$ ${custoBenef.toFixed(2)}` : "") +
                     (observacao ? ` (${observacao})` : ""),
                   pesoAntes: l.pesoAtual,
                   pesoDepois: novoPeso,
@@ -296,7 +298,6 @@ export const actions = {
       ),
     }));
   },
-  venderLote(loteId: string, precoVenda: number) {
     setState((s) => ({
       ...s,
       lotes: s.lotes.map((l) =>
