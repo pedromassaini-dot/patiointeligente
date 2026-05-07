@@ -11,12 +11,12 @@ function LoginPage() {
   const user = useStore((s) => s.user);
   const navigate = useNavigate();
   useEffect(() => {
-    if (user) navigate({ to: "/dashboard" });
+    if (user) navigate({ to: user.role === "operador" ? "/operador" : "/dashboard" });
   }, [user, navigate]);
 
   const entrar = (role: "operador" | "gestor") => {
     actions.login(role);
-    navigate({ to: "/dashboard" });
+    navigate({ to: role === "operador" ? "/operador" : "/dashboard" });
   };
 
   return (
