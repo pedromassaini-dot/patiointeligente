@@ -14,6 +14,7 @@ import { Route as TiposRouteImport } from './routes/tipos'
 import { Route as OperadorRouteImport } from './routes/operador'
 import { Route as NovoLoteRouteImport } from './routes/novo-lote'
 import { Route as MovimentacoesRouteImport } from './routes/movimentacoes'
+import { Route as GestorRouteImport } from './routes/gestor'
 import { Route as FornecedoresRouteImport } from './routes/fornecedores'
 import { Route as EstoqueRouteImport } from './routes/estoque'
 import { Route as DashboardRouteImport } from './routes/dashboard'
@@ -44,6 +45,11 @@ const NovoLoteRoute = NovoLoteRouteImport.update({
 const MovimentacoesRoute = MovimentacoesRouteImport.update({
   id: '/movimentacoes',
   path: '/movimentacoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GestorRoute = GestorRouteImport.update({
+  id: '/gestor',
+  path: '/gestor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FornecedoresRoute = FornecedoresRouteImport.update({
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
   '/fornecedores': typeof FornecedoresRoute
+  '/gestor': typeof GestorRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-lote': typeof NovoLoteRoute
   '/operador': typeof OperadorRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
   '/fornecedores': typeof FornecedoresRoute
+  '/gestor': typeof GestorRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-lote': typeof NovoLoteRoute
   '/operador': typeof OperadorRoute
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
   '/fornecedores': typeof FornecedoresRoute
+  '/gestor': typeof GestorRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-lote': typeof NovoLoteRoute
   '/operador': typeof OperadorRoute
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/estoque'
     | '/fornecedores'
+    | '/gestor'
     | '/movimentacoes'
     | '/novo-lote'
     | '/operador'
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/estoque'
     | '/fornecedores'
+    | '/gestor'
     | '/movimentacoes'
     | '/novo-lote'
     | '/operador'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/estoque'
     | '/fornecedores'
+    | '/gestor'
     | '/movimentacoes'
     | '/novo-lote'
     | '/operador'
@@ -165,6 +177,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   EstoqueRoute: typeof EstoqueRoute
   FornecedoresRoute: typeof FornecedoresRoute
+  GestorRoute: typeof GestorRoute
   MovimentacoesRoute: typeof MovimentacoesRoute
   NovoLoteRoute: typeof NovoLoteRoute
   OperadorRoute: typeof OperadorRoute
@@ -208,6 +221,13 @@ declare module '@tanstack/react-router' {
       path: '/movimentacoes'
       fullPath: '/movimentacoes'
       preLoaderRoute: typeof MovimentacoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gestor': {
+      id: '/gestor'
+      path: '/gestor'
+      fullPath: '/gestor'
+      preLoaderRoute: typeof GestorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fornecedores': {
@@ -261,6 +281,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   EstoqueRoute: EstoqueRoute,
   FornecedoresRoute: FornecedoresRoute,
+  GestorRoute: GestorRoute,
   MovimentacoesRoute: MovimentacoesRoute,
   NovoLoteRoute: NovoLoteRoute,
   OperadorRoute: OperadorRoute,
