@@ -12,6 +12,7 @@ import {
   Factory,
   Menu,
   X,
+  Briefcase,
 } from "lucide-react";
 import { useState } from "react";
 import { actions, useStore, type Role } from "@/lib/store";
@@ -21,6 +22,7 @@ type NavItem = { to: string; label: string; icon: React.ComponentType<{ classNam
 
 const NAV: NavItem[] = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["gestor", "operador"] },
+  { to: "/gestor", label: "Modo Gestor", icon: Briefcase, roles: ["gestor"] },
   { to: "/novo-lote", label: "Novo Lote", icon: PackagePlus, roles: ["operador", "gestor"] },
   { to: "/estoque", label: "Estoque", icon: Boxes, roles: ["gestor", "operador"] },
   { to: "/beneficiamento", label: "Beneficiamento", icon: Hammer, roles: ["operador", "gestor"] },
