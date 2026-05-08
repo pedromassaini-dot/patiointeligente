@@ -192,13 +192,22 @@ export function getState() {
 }
 
 export function useStore<T>(selector: (s: State) => T): T {
+  const lastRef = useRef<{ has: boolean; value: T }>({ has: false, value: undefined as unknown as T });
+  const getSnapshot = () => {
+    const next = selector(state);
+    if (lastRef.current.has && shallowEqual(lastRef.current.value, next)) {
+      return lastRef.current.value;
+    }
+    lastRef.current = { has: true, value: next };
+    return next;
+  };
   return useSyncExternalStore(
     (cb) => {
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
-    () => selector(state),
-    () => selector(state)
+    getSnapshot,
+    getSnapshot
   );
 }
 
