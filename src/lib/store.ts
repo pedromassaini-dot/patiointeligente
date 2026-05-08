@@ -1,4 +1,17 @@
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, useRef } from "react";
+
+function shallowEqual(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== "object" || a === null || typeof b !== "object" || b === null) return false;
+  const ka = Object.keys(a as object);
+  const kb = Object.keys(b as object);
+  if (ka.length !== kb.length) return false;
+  for (const k of ka) {
+    if (!Object.prototype.hasOwnProperty.call(b, k)) return false;
+    if (!Object.is((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k])) return false;
+  }
+  return true;
+}
 
 export type Role = "operador" | "gestor";
 export type User = { id: string; nome: string; role: Role };
@@ -179,13 +192,22 @@ export function getState() {
 }
 
 export function useStore<T>(selector: (s: State) => T): T {
+  const lastRef = useRef<{ has: boolean; value: T }>({ has: false, value: undefined as unknown as T });
+  const getSnapshot = () => {
+    const next = selector(state);
+    if (lastRef.current.has && shallowEqual(lastRef.current.value, next)) {
+      return lastRef.current.value;
+    }
+    lastRef.current = { has: true, value: next };
+    return next;
+  };
   return useSyncExternalStore(
     (cb) => {
       listeners.add(cb);
       return () => listeners.delete(cb);
     },
-    () => selector(state),
-    () => selector(state)
+    getSnapshot,
+    getSnapshot
   );
 }
 
