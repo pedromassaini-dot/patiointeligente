@@ -3,16 +3,14 @@ import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
-import { componentTagger } from "lovable-tagger";
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   plugins: [
     tsconfigPaths(),
     TanStackRouterVite({ target: "react", autoCodeSplitting: true }),
     react(),
     tailwindcss(),
-    mode === "development" && componentTagger(),
-  ].filter(Boolean),
+  ],
   server: {
     host: "::",
     port: 8080,
@@ -21,4 +19,4 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: "dist",
   },
-}));
+});
