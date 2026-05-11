@@ -34,9 +34,19 @@ const NAV: NavItem[] = [
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const user = useStore((s) => s.user);
+  const authChecked = useStore((s) => s.authChecked);
+  const loading = useStore((s) => s.loading);
   const navigate = useNavigate();
   const path = useRouterState({ select: (r) => r.location.pathname });
   const [open, setOpen] = useState(false);
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
+        Carregando...
+      </div>
+    );
+  }
 
   if (!user) {
     if (typeof window !== "undefined" && path !== "/") {
