@@ -207,7 +207,7 @@ async function loadAll() {
         {
           id: `entrada-${l.id}`,
           data: l.data_entrada,
-          tipo: "entrada",
+          tipo: "entrada" as const,
           descricao: `Entrada de ${Number(l.peso_bruto).toFixed(1)} kg`,
           operador: "—",
         },
