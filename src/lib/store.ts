@@ -322,35 +322,37 @@ function teardownRealtime() {
 
 // ===== Auth =====
 async function loadUserProfile(userId: string, email: string): Promise<User | null> {
+  // First, try to find the user by id (primary key)
   const { data, error } = await supabase.from("usuarios").select("*").eq("id", userId).maybeSingle();
-  if (!data) {
-    // Try to insert a default user entry if it doesn't exist
-    const { data: insertData, error: insertError } = await supabase
-      .from("usuarios")
-      .insert({
-        id: userId,
-        nome: email.split("@")[0],
-        email: email,
-        perfil: "operador"
-      })
-      .select()
-      .maybeSingle();
-    if (insertData) {
-      return {
-        id: insertData.id,
-        nome: insertData.nome,
-        role: (insertData.perfil as Role) ?? "operador",
-        email: insertData.email,
-      };
-    }
-    return { id: userId, nome: email.split("@")[0], role: "operador", email };
+  if (data) {
+    // User exists, use the exact profile from database
+    return {
+      id: data.id,
+      nome: data.nome,
+      role: data.perfil as Role,
+      email: data.email,
+    };
   }
-  return {
-    id: data.id,
-    nome: data.nome,
-    role: (data.perfil as Role) ?? "operador",
-    email: data.email,
-  };
+  // User does not exist, insert a new operator user (fallback, though trigger should handle this)
+  const { data: insertData, error: insertError } = await supabase
+    .from("usuarios")
+    .insert({
+      id: userId,
+      nome: email.split("@")[0],
+      email: email,
+      perfil: "operador"
+    })
+    .select()
+    .maybeSingle();
+  if (insertData) {
+    return {
+      id: insertData.id,
+      nome: insertData.nome,
+      role: insertData.perfil as Role,
+      email: insertData.email,
+    };
+  }
+  return { id: userId, nome: email.split("@")[0], role: "operador", email };
 }
 
 export async function initAuth() {
