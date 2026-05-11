@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader, Field, inputCls, btnPrimary } from "@/components/ui-bits";
-import { useStore, actions, fmtBRL, fmtKg } from "@/lib/store";
+import { useStore, actions, fmtKg } from "@/lib/store";
 import { useState } from "react";
 import { Plus, Tags } from "lucide-react";
 import { toast } from "sonner";
@@ -14,16 +14,24 @@ function TiposPage() {
   const { tipos, lotes } = useStore((s) => ({ tipos: s.tipos, lotes: s.lotes }));
   const [open, setOpen] = useState(false);
   const [nome, setNome] = useState("");
-  const [pc, setPc] = useState("");
-  const [pv, setPv] = useState("");
+  const [categoria, setCategoria] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const c = parseFloat(pc), v = parseFloat(pv);
-    if (!nome.trim() || !c || !v) return toast.error("Preencha todos os campos.");
-    actions.addTipo({ nome: nome.trim(), precoMedioCompra: c, precoMedioVenda: v });
-    toast.success("Tipo cadastrado");
-    setNome(""); setPc(""); setPv(""); setOpen(false);
+    if (!nome.trim()) return toast.error("Informe o nome.");
+    setSaving(true);
+    try {
+      await actions.addTipo({ nome: nome.trim(), categoria: categoria.trim() || undefined });
+      toast.success("Material cadastrado");
+      setNome("");
+      setCategoria("");
+      setOpen(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -39,58 +47,61 @@ function TiposPage() {
       />
 
       {open && (
-        <form onSubmit={submit} className="bg-card rounded-xl border p-4 md:p-6 mb-4 grid sm:grid-cols-3 gap-3">
+        <form onSubmit={submit} className="bg-card rounded-xl border p-4 md:p-6 mb-4 grid sm:grid-cols-2 gap-3">
           <Field label="Nome *">
-            <input className={inputCls} value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Alumínio Cabo" />
+            <input
+              className={inputCls}
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              placeholder="Ex: Alumínio Cabo"
+            />
           </Field>
-          <Field label="Preço médio compra (R$/kg) *">
-            <input className={inputCls} type="number" step="0.01" value={pc} onChange={(e) => setPc(e.target.value)} />
+          <Field label="Categoria">
+            <input
+              className={inputCls}
+              value={categoria}
+              onChange={(e) => setCategoria(e.target.value)}
+              placeholder="Ex: Alumínio"
+            />
           </Field>
-          <Field label="Preço médio venda (R$/kg) *">
-            <input className={inputCls} type="number" step="0.01" value={pv} onChange={(e) => setPv(e.target.value)} />
-          </Field>
-          <div className="sm:col-span-3 flex justify-end">
-            <button type="submit" className={btnPrimary}>Salvar</button>
+          <div className="sm:col-span-2 flex justify-end">
+            <button type="submit" disabled={saving} className={btnPrimary}>
+              {saving ? "Salvando..." : "Salvar"}
+            </button>
           </div>
         </form>
       )}
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {tipos.map((t) => {
-          const lotesT = lotes.filter((l) => l.tipoMaterialId === t.id && l.status !== "vendido");
-          const peso = lotesT.reduce((a, l) => a + l.pesoAtual, 0);
-          const margem = t.precoMedioVenda - t.precoMedioCompra;
-          return (
-            <div key={t.id} className="bg-card rounded-xl border p-4">
-              <div className="flex items-start gap-3">
-                <div className="h-10 w-10 rounded-md bg-accent/20 text-accent-foreground flex items-center justify-center">
-                  <Tags className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <div className="font-semibold">{t.nome}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {lotesT.length} lote{lotesT.length !== 1 ? "s" : ""} · {fmtKg(peso)}
+      {tipos.length === 0 ? (
+        <div className="bg-card rounded-xl border p-8 text-center text-sm text-muted-foreground">
+          Nenhum tipo de material cadastrado ainda.
+        </div>
+      ) : (
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {tipos.map((t) => {
+            const lotesT = lotes.filter((l) => l.tipoMaterialId === t.id && l.status !== "vendido");
+            const peso = lotesT.reduce((a, l) => a + l.pesoAtual, 0);
+            return (
+              <div key={t.id} className="bg-card rounded-xl border p-4">
+                <div className="flex items-start gap-3">
+                  <div className="h-10 w-10 rounded-md bg-accent/20 text-accent-foreground flex items-center justify-center">
+                    <Tags className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold">{t.nome}</div>
+                    {t.categoria && (
+                      <div className="text-xs text-muted-foreground">{t.categoria}</div>
+                    )}
                   </div>
                 </div>
-              </div>
-              <div className="mt-3 pt-3 border-t grid grid-cols-3 gap-2 text-xs">
-                <div>
-                  <div className="text-muted-foreground">Compra</div>
-                  <div className="font-semibold">{fmtBRL(t.precoMedioCompra)}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">Venda</div>
-                  <div className="font-semibold">{fmtBRL(t.precoMedioVenda)}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground">Margem</div>
-                  <div className="font-semibold text-success">{fmtBRL(margem)}</div>
+                <div className="mt-3 pt-3 border-t text-xs text-muted-foreground">
+                  {lotesT.length} lote{lotesT.length !== 1 ? "s" : ""} em estoque · {fmtKg(peso)}
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </AppLayout>
   );
 }
