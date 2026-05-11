@@ -104,7 +104,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className="flex-1 p-4 md:p-6 max-w-[1400px] w-full mx-auto">
-          {loading && state_indicator()}
+          {loading && (
+            <div className="text-xs text-muted-foreground mb-2">Sincronizando dados...</div>
+          )}
           {children}
         </main>
       </div>
