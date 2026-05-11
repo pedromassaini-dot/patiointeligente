@@ -380,13 +380,13 @@ function LoteDetailPage() {
             </div>
             {lote.fotos.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                {lote.fotos.map((src, i) => (
-                  <div key={i} className="relative aspect-square rounded-md overflow-hidden border bg-muted group">
-                    <button onClick={() => setLightbox(src)} className="block w-full h-full">
-                      <img src={src} alt={`foto ${i + 1}`} className="w-full h-full object-cover" />
+                {lote.fotos.map((foto, i) => (
+                  <div key={foto.id} className="relative aspect-square rounded-md overflow-hidden border bg-muted group">
+                    <button onClick={() => setLightbox(foto.url)} className="block w-full h-full">
+                      <img src={foto.url} alt={`foto ${i + 1}`} className="w-full h-full object-cover" />
                     </button>
                     <button
-                      onClick={() => actions.removeFoto(lote.id, i)}
+                      onClick={() => actions.removeFoto(lote.id, foto.id)}
                       className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
                       aria-label="Remover"
                     >
