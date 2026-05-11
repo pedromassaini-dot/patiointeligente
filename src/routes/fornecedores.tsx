@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader, Field, inputCls, btnPrimary } from "@/components/ui-bits";
 import { useStore, actions } from "@/lib/store";
@@ -11,6 +11,14 @@ export const Route = createFileRoute("/fornecedores")({
 });
 
 function FornecedoresPage() {
+  const user = useStore((s) => s.user);
+  const navigate = useNavigate();
+
+  if (!user || user.role !== "gestor") {
+    navigate({ to: "/dashboard" });
+    return null;
+  }
+
   const { fornecedores, lotes } = useStore((s) => ({ fornecedores: s.fornecedores, lotes: s.lotes }));
   const [open, setOpen] = useState(false);
   const [nome, setNome] = useState("");

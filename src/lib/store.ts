@@ -322,8 +322,29 @@ function teardownRealtime() {
 
 // ===== Auth =====
 async function loadUserProfile(userId: string, email: string): Promise<User | null> {
-  const { data } = await supabase.from("usuarios").select("*").eq("id", userId).maybeSingle();
-  if (!data) return { id: userId, nome: email.split("@")[0], role: "operador", email };
+  const { data, error } = await supabase.from("usuarios").select("*").eq("id", userId).maybeSingle();
+  if (!data) {
+    // Try to insert a default user entry if it doesn't exist
+    const { data: insertData, error: insertError } = await supabase
+      .from("usuarios")
+      .insert({
+        id: userId,
+        nome: email.split("@")[0],
+        email: email,
+        perfil: "operador"
+      })
+      .select()
+      .maybeSingle();
+    if (insertData) {
+      return {
+        id: insertData.id,
+        nome: insertData.nome,
+        role: (insertData.perfil as Role) ?? "operador",
+        email: insertData.email,
+      };
+    }
+    return { id: userId, nome: email.split("@")[0], role: "operador", email };
+  }
   return {
     id: data.id,
     nome: data.nome,
@@ -344,7 +365,7 @@ export async function initAuth() {
     setState((s) => ({ ...s, authChecked: true }));
   }
 
-  supabase.auth.onAuthStateChange((_event, session) => {
+  supabase.auth.onAuthStateChange(async (event, session) => {
     if (session) {
       // defer to avoid potential deadlock with supabase client
       setTimeout(async () => {
@@ -437,6 +458,24 @@ export const actions = {
   },
   async logout() {
     await supabase.auth.signOut();
+    // Clear any cached data
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('supabase.auth.token');
+      // Clear any other supabase related keys
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('supabase.')) {
+          localStorage.removeItem(key);
+        }
+      });
+    }
+  },
+  async refreshProfile() {
+    const { data: sess } = await supabase.auth.getSession();
+    if (sess.session) {
+      await supabase.auth.refreshSession();
+      const u = await loadUserProfile(sess.session.user.id, sess.session.user.email ?? "");
+      setState((s) => ({ ...s, user: u }));
+    }
   },
   async addLote(input: {
     tipoMaterialId: string;

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader, StatCard, StatusBadge, inputCls } from "@/components/ui-bits";
 import {
@@ -41,6 +41,14 @@ export const Route = createFileRoute("/gestor")({
 });
 
 function GestorPage() {
+  const user = useStore((s) => s.user);
+  const navigate = useNavigate();
+
+  if (!user || user.role !== "gestor") {
+    navigate({ to: "/dashboard" });
+    return null;
+  }
+
   const { lotes, tipos, fornecedores } = useStore((s) => ({
     lotes: s.lotes,
     tipos: s.tipos,

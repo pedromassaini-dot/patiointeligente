@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   Briefcase,
+  RefreshCw,
 } from "lucide-react";
 import { useState } from "react";
 import { actions, useStore, type Role } from "@/lib/store";
@@ -91,6 +92,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <div className="text-sm font-medium leading-tight">{user.nome}</div>
               <div className="text-xs text-muted-foreground capitalize">{user.role}</div>
             </div>
+            <button
+              onClick={async () => {
+                await actions.refreshProfile();
+              }}
+              className="p-2 rounded-md hover:bg-muted text-muted-foreground"
+              aria-label="Recarregar perfil"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
             <button
               onClick={async () => {
                 await actions.logout();
