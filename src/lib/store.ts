@@ -557,7 +557,7 @@ export const actions = {
       observacoes: string;
     }>
   ) {
-    const update: Record<string, unknown> = {};
+    const update: Database["public"]["Tables"]["lotes"]["Update"] = {};
     if (patch.tipoMaterialId) update.material_id = patch.tipoMaterialId;
     if (patch.fornecedorId) update.fornecedor_id = patch.fornecedorId;
     if (patch.custoUnitario !== undefined) update.preco_kg_compra = patch.custoUnitario;
