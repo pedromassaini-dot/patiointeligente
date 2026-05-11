@@ -10,60 +10,92 @@ export const Route = createFileRoute("/novo-lote")({
   component: NovoLotePage,
 });
 
-const LOCALIZACOES = ["A1", "A2", "A3", "B1", "B2", "B3", "C1", "C2", "C3", "Doca"];
+const LOCALIZACOES_PADRAO = ["A1", "A2", "A3", "B1", "B2", "B3", "C1", "C2", "C3", "Doca"];
 
 function NovoLotePage() {
   const navigate = useNavigate();
-  const { tipos, fornecedores } = useStore((s) => ({
+  const { tipos, fornecedores, localizacoes } = useStore((s) => ({
     tipos: s.tipos,
     fornecedores: s.fornecedores,
+    localizacoes: s.localizacoes,
   }));
 
-  const [tipoId, setTipoId] = useState(tipos[0]?.id ?? "");
-  const [fornId, setFornId] = useState(fornecedores[0]?.id ?? "");
+  const opcoesLoc = localizacoes.length > 0 ? localizacoes.map((l) => l.nome) : LOCALIZACOES_PADRAO;
+
+  const [tipoId, setTipoId] = useState("");
+  const [fornId, setFornId] = useState("");
   const [peso, setPeso] = useState("");
   const [custo, setCusto] = useState("");
-  const [loc, setLoc] = useState(LOCALIZACOES[0]);
+  const [loc, setLoc] = useState(opcoesLoc[0] ?? "");
   const [obs, setObs] = useState("");
-  const [fotos, setFotos] = useState<string[]>([]);
+  const [fotos, setFotos] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const tipoSel = tipos.find((t) => t.id === tipoId);
 
-  const onFiles = async (files: FileList | null) => {
+  const onFiles = (files: FileList | null) => {
     if (!files) return;
-    const arr: string[] = [];
-    for (const f of Array.from(files).slice(0, 5)) {
-      const dataURL = await new Promise<string>((res) => {
-        const r = new FileReader();
-        r.onload = () => res(r.result as string);
-        r.readAsDataURL(f);
-      });
-      arr.push(dataURL);
-    }
-    setFotos((p) => [...p, ...arr].slice(0, 6));
+    const arr = Array.from(files).slice(0, 6 - fotos.length);
+    setFotos((p) => [...p, ...arr]);
+    setPreviews((p) => [...p, ...arr.map((f) => URL.createObjectURL(f))]);
   };
 
-  const submit = (e: React.FormEvent) => {
+  const remove = (i: number) => {
+    setFotos((p) => p.filter((_, j) => j !== i));
+    setPreviews((p) => {
+      URL.revokeObjectURL(p[i]);
+      return p.filter((_, j) => j !== i);
+    });
+  };
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const p = parseFloat(peso);
     const c = parseFloat(custo);
-    if (!tipoId || !fornId || !p || p <= 0 || !c || c <= 0) {
+    if (!tipoId || !fornId || !p || p <= 0 || !c || c <= 0 || !loc) {
       toast.error("Preencha todos os campos obrigatórios.");
       return;
     }
-    const lote = actions.addLote({
-      tipoMaterialId: tipoId,
-      fornecedorId: fornId,
-      pesoEntrada: p,
-      custoUnitario: c,
-      localizacao: loc,
-      fotos,
-      observacoes: obs,
-    });
-    toast.success(`Lote ${lote.codigo} cadastrado!`);
-    navigate({ to: "/lote/$id", params: { id: lote.id } });
+    setSaving(true);
+    try {
+      const lote = await actions.addLote({
+        tipoMaterialId: tipoId,
+        fornecedorId: fornId,
+        pesoEntrada: p,
+        custoUnitario: c,
+        localizacao: loc,
+        fotos,
+        observacoes: obs,
+      });
+      toast.success(`Lote ${lote.codigo} cadastrado!`);
+      navigate({ to: "/lote/$id", params: { id: lote.id } });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar lote");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (tipos.length === 0 || fornecedores.length === 0) {
+    return (
+      <AppLayout>
+        <PageHeader title="Novo Lote" description="Registrar entrada de material no pátio" />
+        <div className="bg-card rounded-xl border p-8 text-center text-sm text-muted-foreground space-y-2">
+          <p>É preciso cadastrar pelo menos um tipo de material e um fornecedor antes de criar um lote.</p>
+          <div className="flex justify-center gap-2 pt-2">
+            <button className={btnSecondary} onClick={() => navigate({ to: "/tipos" })}>
+              Cadastrar tipo
+            </button>
+            <button className={btnSecondary} onClick={() => navigate({ to: "/fornecedores" })}>
+              Cadastrar fornecedor
+            </button>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -75,17 +107,19 @@ function NovoLotePage() {
       <form onSubmit={submit} className="bg-card rounded-xl border p-4 md:p-6 max-w-3xl space-y-5">
         <div className="grid sm:grid-cols-2 gap-4">
           <Field label="Tipo de material *">
-            <select className={inputCls} value={tipoId} onChange={(e) => {
-              setTipoId(e.target.value);
-              const t = tipos.find((x) => x.id === e.target.value);
-              if (t && !custo) setCusto(String(t.precoMedioCompra));
-            }}>
+            <select
+              className={inputCls}
+              value={tipoId}
+              onChange={(e) => setTipoId(e.target.value)}
+            >
+              <option value="">Selecione...</option>
               {tipos.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
             </select>
           </Field>
 
           <Field label="Fornecedor *">
             <select className={inputCls} value={fornId} onChange={(e) => setFornId(e.target.value)}>
+              <option value="">Selecione...</option>
               {fornecedores.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
             </select>
           </Field>
@@ -104,7 +138,7 @@ function NovoLotePage() {
 
           <Field
             label="Custo unitário (R$/kg) *"
-            hint={tipoSel ? `Sugerido: R$ ${tipoSel.precoMedioCompra.toFixed(2)}` : undefined}
+            hint={tipoSel?.precoMedioCompra ? `Sugerido: R$ ${tipoSel.precoMedioCompra.toFixed(2)}` : undefined}
           >
             <input
               className={inputCls}
@@ -119,7 +153,7 @@ function NovoLotePage() {
 
           <Field label="Localização no pátio *">
             <select className={inputCls} value={loc} onChange={(e) => setLoc(e.target.value)}>
-              {LOCALIZACOES.map((l) => <option key={l} value={l}>{l}</option>)}
+              {opcoesLoc.map((l) => <option key={l} value={l}>{l}</option>)}
             </select>
           </Field>
         </div>
@@ -160,14 +194,14 @@ function NovoLotePage() {
               onChange={(e) => onFiles(e.target.files)}
             />
           </div>
-          {fotos.length > 0 ? (
+          {previews.length > 0 ? (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {fotos.map((src, i) => (
+              {previews.map((src, i) => (
                 <div key={i} className="relative aspect-square rounded-md overflow-hidden border bg-muted">
                   <img src={src} alt={`foto ${i + 1}`} className="w-full h-full object-cover" />
                   <button
                     type="button"
-                    onClick={() => setFotos((p) => p.filter((_, j) => j !== i))}
+                    onClick={() => remove(i)}
                     className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center"
                     aria-label="Remover"
                   >
@@ -184,10 +218,15 @@ function NovoLotePage() {
         </div>
 
         <div className="flex gap-2 pt-2 border-t">
-          <button type="submit" className={btnPrimary}>
-            <Save className="h-4 w-4" /> Cadastrar lote
+          <button type="submit" disabled={saving} className={btnPrimary}>
+            <Save className="h-4 w-4" /> {saving ? "Salvando..." : "Cadastrar lote"}
           </button>
-          <button type="button" className={btnSecondary} onClick={() => navigate({ to: "/estoque" })}>
+          <button
+            type="button"
+            className={btnSecondary}
+            onClick={() => navigate({ to: "/estoque" })}
+            disabled={saving}
+          >
             Cancelar
           </button>
         </div>
