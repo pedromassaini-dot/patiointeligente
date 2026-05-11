@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "fotos lote leitura publica" ON storage.objects;

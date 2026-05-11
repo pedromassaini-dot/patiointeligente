@@ -107,7 +107,7 @@ export function LoteCard({
     >
       <div className="aspect-video bg-muted relative overflow-hidden">
         {lote.fotos[0] ? (
-          <img src={lote.fotos[0]} alt={lote.codigo} className="w-full h-full object-cover" />
+          <img src={lote.fotos[0].url} alt={lote.codigo} className="w-full h-full object-cover" />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground">
             <ImageOff className="h-8 w-8" />

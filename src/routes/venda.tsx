@@ -60,7 +60,7 @@ function VendaPage() {
 
           <Field
             label="Preço de venda (R$/kg) *"
-            hint={tipo ? `Sugerido: R$ ${tipo.precoMedioVenda.toFixed(2)}` : undefined}
+            hint={tipo?.precoMedioVenda ? `Sugerido: R$ ${tipo.precoMedioVenda.toFixed(2)}` : undefined}
           >
             <input
               className={inputCls}

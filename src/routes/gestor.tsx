@@ -348,7 +348,7 @@ function GestorPage() {
                   className="group rounded-lg overflow-hidden border bg-card hover:border-primary transition"
                 >
                   <div className="aspect-square bg-muted relative">
-                    <img src={l.fotos[0]} alt={l.codigo} className="w-full h-full object-cover" />
+                    <img src={l.fotos[0].url} alt={l.codigo} className="w-full h-full object-cover" />
                     <div className="absolute top-1 right-1 bg-card/90 text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1">
                       <Camera className="h-2.5 w-2.5" />{l.fotos.length}
                     </div>

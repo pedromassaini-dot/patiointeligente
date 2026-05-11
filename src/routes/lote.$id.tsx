@@ -106,17 +106,13 @@ function LoteDetailPage() {
 
   const onFotos = async (files: FileList | null) => {
     if (!files) return;
-    const arr: string[] = [];
-    for (const f of Array.from(files).slice(0, 6)) {
-      const dataURL = await new Promise<string>((res) => {
-        const r = new FileReader();
-        r.onload = () => res(r.result as string);
-        r.readAsDataURL(f);
-      });
-      arr.push(dataURL);
+    const arr = Array.from(files).slice(0, 6);
+    try {
+      await actions.addFotos(lote.id, arr);
+      toast.success(`${arr.length} foto(s) adicionada(s)`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao enviar fotos");
     }
-    actions.addFotos(lote.id, arr);
-    toast.success(`${arr.length} foto(s) adicionada(s)`);
   };
 
   const openEdit = () => {
@@ -283,7 +279,7 @@ function LoteDetailPage() {
         <ActionPanel title="Registrar venda" onClose={() => setShowVenda(false)}>
           <Field
             label="Preço de venda (R$/kg) *"
-            hint={tipo ? `Sugerido: R$ ${tipo.precoMedioVenda.toFixed(2)}` : undefined}
+            hint={tipo?.precoMedioVenda ? `Sugerido: R$ ${tipo.precoMedioVenda.toFixed(2)}` : undefined}
           >
             <input
               className={inputCls}
@@ -384,13 +380,13 @@ function LoteDetailPage() {
             </div>
             {lote.fotos.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                {lote.fotos.map((src, i) => (
-                  <div key={i} className="relative aspect-square rounded-md overflow-hidden border bg-muted group">
-                    <button onClick={() => setLightbox(src)} className="block w-full h-full">
-                      <img src={src} alt={`foto ${i + 1}`} className="w-full h-full object-cover" />
+                {lote.fotos.map((foto, i) => (
+                  <div key={foto.id} className="relative aspect-square rounded-md overflow-hidden border bg-muted group">
+                    <button onClick={() => setLightbox(foto.url)} className="block w-full h-full">
+                      <img src={foto.url} alt={`foto ${i + 1}`} className="w-full h-full object-cover" />
                     </button>
                     <button
-                      onClick={() => actions.removeFoto(lote.id, i)}
+                      onClick={() => actions.removeFoto(lote.id, foto.id)}
                       className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
                       aria-label="Remover"
                     >

@@ -34,9 +34,19 @@ const NAV: NavItem[] = [
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const user = useStore((s) => s.user);
+  const authChecked = useStore((s) => s.authChecked);
+  const loading = useStore((s) => s.loading);
   const navigate = useNavigate();
   const path = useRouterState({ select: (r) => r.location.pathname });
   const [open, setOpen] = useState(false);
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
+        Carregando...
+      </div>
+    );
+  }
 
   if (!user) {
     if (typeof window !== "undefined" && path !== "/") {
@@ -82,8 +92,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <div className="text-xs text-muted-foreground capitalize">{user.role}</div>
             </div>
             <button
-              onClick={() => {
-                actions.logout();
+              onClick={async () => {
+                await actions.logout();
                 navigate({ to: "/" });
               }}
               className="p-2 rounded-md hover:bg-muted text-muted-foreground"
@@ -93,7 +103,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </header>
-        <main className="flex-1 p-4 md:p-6 max-w-[1400px] w-full mx-auto">{children}</main>
+        <main className="flex-1 p-4 md:p-6 max-w-[1400px] w-full mx-auto">
+          {loading && (
+            <div className="text-xs text-muted-foreground mb-2">Sincronizando dados...</div>
+          )}
+          {children}
+        </main>
       </div>
     </div>
   );

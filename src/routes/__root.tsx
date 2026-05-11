@@ -71,7 +71,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+import { useEffect } from "react";
+import { initAuth } from "@/lib/store";
+
+let _authInited = false;
+
 function RootComponent() {
+  useEffect(() => {
+    if (!_authInited) {
+      _authInited = true;
+      void initAuth();
+    }
+  }, []);
   return (
     <>
       <Outlet />
