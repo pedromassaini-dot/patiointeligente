@@ -106,17 +106,13 @@ function LoteDetailPage() {
 
   const onFotos = async (files: FileList | null) => {
     if (!files) return;
-    const arr: string[] = [];
-    for (const f of Array.from(files).slice(0, 6)) {
-      const dataURL = await new Promise<string>((res) => {
-        const r = new FileReader();
-        r.onload = () => res(r.result as string);
-        r.readAsDataURL(f);
-      });
-      arr.push(dataURL);
+    const arr = Array.from(files).slice(0, 6);
+    try {
+      await actions.addFotos(lote.id, arr);
+      toast.success(`${arr.length} foto(s) adicionada(s)`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao enviar fotos");
     }
-    actions.addFotos(lote.id, arr);
-    toast.success(`${arr.length} foto(s) adicionada(s)`);
   };
 
   const openEdit = () => {
