@@ -1,5 +1,8 @@
-import { useSyncExternalStore, useRef } from "react";
+import { useSyncExternalStore, useRef, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
 
+// ===== shallow compare to keep useSyncExternalStore stable =====
 function shallowEqual(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;
   if (typeof a !== "object" || a === null || typeof b !== "object" || b === null) return false;
@@ -13,14 +16,16 @@ function shallowEqual(a: unknown, b: unknown): boolean {
   return true;
 }
 
+// ===== Types (camelCase, used by UI) =====
 export type Role = "operador" | "gestor";
-export type User = { id: string; nome: string; role: Role };
+export type User = { id: string; nome: string; role: Role; email: string };
 
 export type TipoMaterial = {
   id: string;
   nome: string;
-  precoMedioCompra: number; // R$/kg
-  precoMedioVenda: number; // R$/kg
+  categoria?: string;
+  precoMedioCompra?: number;
+  precoMedioVenda?: number;
 };
 
 export type Fornecedor = {
@@ -30,7 +35,18 @@ export type Fornecedor = {
   cidade: string;
 };
 
+export type Localizacao = { id: string; nome: string };
+
 export type StatusLote = "estoque" | "beneficiamento" | "vendido";
+type DBStatus = Database["public"]["Enums"]["status_lote"];
+
+function mapStatus(s: DBStatus): StatusLote {
+  if (s === "em_beneficiamento") return "beneficiamento";
+  if (s === "vendido_total" || s === "vendido_parcial") return "vendido";
+  return "estoque";
+}
+
+export type Foto = { id: string; url: string };
 
 export type Movimentacao = {
   id: string;
@@ -51,19 +67,78 @@ export type Lote = {
   fornecedorId: string;
   pesoEntrada: number;
   pesoAtual: number;
-  custoUnitario: number; // R$/kg (preço de compra)
-  custoBeneficiamento: number; // R$ total
-  localizacao: string;
+  custoUnitario: number; // R$/kg compra
+  custoBeneficiamento: number; // soma
+  localizacao: string; // nome
+  localizacaoId: string | null;
   status: StatusLote;
-  fotos: string[]; // dataURLs
+  fotos: Foto[];
   observacoes?: string;
   dataEntrada: string;
   dataSaida?: string;
-  precoVenda?: number; // R$/kg
+  precoVenda?: number;
   movimentacoes: Movimentacao[];
 };
 
-// ===== Cálculos automáticos =====
+type State = {
+  user: User | null;
+  authChecked: boolean;
+  loading: boolean;
+  error: string | null;
+  tipos: TipoMaterial[];
+  fornecedores: Fornecedor[];
+  localizacoes: Localizacao[];
+  lotes: Lote[];
+};
+
+let state: State = {
+  user: null,
+  authChecked: false,
+  loading: false,
+  error: null,
+  tipos: [],
+  fornecedores: [],
+  localizacoes: [],
+  lotes: [],
+};
+
+const listeners = new Set<() => void>();
+
+function setState(updater: (s: State) => State) {
+  state = updater(state);
+  listeners.forEach((l) => l());
+}
+
+export function getState() {
+  return state;
+}
+
+export function subscribe(l: () => void) {
+  listeners.add(l);
+  return () => listeners.delete(l);
+}
+
+export function useStore<T>(selector: (s: State) => T): T {
+  const lastRef = useRef<{ has: boolean; value: T }>({ has: false, value: undefined as unknown as T });
+  const getSnapshot = () => {
+    const next = selector(state);
+    if (lastRef.current.has && shallowEqual(lastRef.current.value, next)) {
+      return lastRef.current.value;
+    }
+    lastRef.current = { has: true, value: next };
+    return next;
+  };
+  return useSyncExternalStore(
+    (cb) => {
+      listeners.add(cb);
+      return () => listeners.delete(cb);
+    },
+    getSnapshot,
+    getSnapshot
+  );
+}
+
+// ===== Cálculos automáticos (espelham triggers do banco) =====
 export function custoTotalCompra(l: Pick<Lote, "pesoEntrada" | "custoUnitario">) {
   return l.pesoEntrada * l.custoUnitario;
 }
@@ -87,303 +162,430 @@ export function margemEstimada(pesoVendido: number, precoKgVenda: number, custoF
   return receitaTotal(pesoVendido, precoKgVenda) - custoProporcional(pesoVendido, custoFinal);
 }
 
-type State = {
-  user: User | null;
-  tipos: TipoMaterial[];
-  fornecedores: Fornecedor[];
-  lotes: Lote[];
-};
-
-const STORAGE_KEY = "patio-inteligente-v1";
-
-const seed: State = {
-  user: null,
-  tipos: [
-    { id: "t1", nome: "Alumínio Perfil", precoMedioCompra: 7.5, precoMedioVenda: 11.2 },
-    { id: "t2", nome: "Alumínio Bloco", precoMedioCompra: 6.2, precoMedioVenda: 9.5 },
-    { id: "t3", nome: "Alumínio Lata", precoMedioCompra: 4.8, precoMedioVenda: 7.8 },
-    { id: "t4", nome: "Alumínio Cavaco", precoMedioCompra: 5.5, precoMedioVenda: 8.6 },
-    { id: "t5", nome: "Alumínio Chaparia", precoMedioCompra: 6.8, precoMedioVenda: 10.1 },
-  ],
-  fornecedores: [
-    { id: "f1", nome: "Sucatas Silva ME", documento: "12.345.678/0001-90", cidade: "São Paulo" },
-    { id: "f2", nome: "Reciclagem Boa Vista", documento: "98.765.432/0001-10", cidade: "Guarulhos" },
-    { id: "f3", nome: "Metais do Vale", documento: "11.222.333/0001-44", cidade: "Campinas" },
-  ],
-  lotes: [],
-};
-
-function generateSeedLotes(): Lote[] {
-  const now = Date.now();
-  const day = 86400000;
-  const lotes: Lote[] = [];
-  const tipos = seed.tipos;
-  const forns = seed.fornecedores;
-  for (let i = 0; i < 8; i++) {
-    const tipo = tipos[i % tipos.length];
-    const forn = forns[i % forns.length];
-    const peso = 200 + Math.round(Math.random() * 800);
-    const dataEntrada = new Date(now - (i * 3 + 1) * day).toISOString();
-    const localizacoes = ["A1", "A2", "B1", "B2", "C1", "C2"];
-    const status: StatusLote =
-      i === 1 ? "beneficiamento" : i === 7 ? "vendido" : "estoque";
-    const pesoAtual = status === "beneficiamento" ? peso * 0.92 : peso;
-    lotes.push({
-      custoBeneficiamento: 0,
-      id: `l${i + 1}`,
-      codigo: `LT-${String(1000 + i)}`,
-      tipoMaterialId: tipo.id,
-      fornecedorId: forn.id,
-      pesoEntrada: peso,
-      pesoAtual,
-      custoUnitario: tipo.precoMedioCompra * (0.95 + Math.random() * 0.1),
-      localizacao: localizacoes[i % localizacoes.length],
-      status,
-      fotos: [],
-      dataEntrada,
-      dataSaida: status === "vendido" ? new Date(now - day).toISOString() : undefined,
-      precoVenda: status === "vendido" ? tipo.precoMedioVenda : undefined,
-      movimentacoes: [
-        {
-          id: `m${i}-1`,
-          data: dataEntrada,
-          tipo: "entrada",
-          descricao: `Entrada de ${peso} kg`,
-          operador: "Sistema",
-        },
-      ],
-    });
-  }
-  return lotes;
-}
-
-let state: State = (() => {
-  if (typeof window === "undefined") return { ...seed, lotes: generateSeedLotes() };
+// ===== Carregamento de dados =====
+async function loadAll() {
+  setState((s) => ({ ...s, loading: true, error: null }));
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as State;
-  } catch {}
-  return { ...seed, lotes: generateSeedLotes() };
-})();
+    const [
+      { data: materiais, error: e1 },
+      { data: fornecedores, error: e2 },
+      { data: localizacoes, error: e3 },
+      { data: lotes, error: e4 },
+      { data: fotos, error: e5 },
+      { data: benefs, error: e6 },
+      { data: vendas, error: e7 },
+      { data: movs, error: e8 },
+    ] = await Promise.all([
+      supabase.from("materiais").select("*").eq("ativo", true).order("nome"),
+      supabase.from("fornecedores").select("*").order("nome"),
+      supabase.from("localizacoes_patio").select("*").eq("ativo", true).order("nome"),
+      supabase.from("lotes").select("*").order("data_entrada", { ascending: false }),
+      supabase.from("fotos_lote").select("*"),
+      supabase.from("beneficiamentos").select("*").order("criado_em"),
+      supabase.from("vendas").select("*").order("data_venda"),
+      supabase.from("movimentacoes").select("*").order("criado_em"),
+    ]);
+    const err = e1 || e2 || e3 || e4 || e5 || e6 || e7 || e8;
+    if (err) throw err;
 
-const listeners = new Set<() => void>();
+    const locById = new Map((localizacoes ?? []).map((l) => [l.id, l.nome]));
 
-function persist() {
-  if (typeof window !== "undefined") {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {}
-  }
-}
+    const lotesAssembled: Lote[] = (lotes ?? []).map((l) => {
+      const lFotos: Foto[] = (fotos ?? [])
+        .filter((f) => f.lote_id === l.id)
+        .map((f) => ({ id: f.id, url: f.url_foto }));
+      const lBenefs = (benefs ?? []).filter((b) => b.lote_id === l.id);
+      const lVendas = (vendas ?? []).filter((v) => v.lote_id === l.id);
+      const lMovs = (movs ?? []).filter((m) => m.lote_id === l.id);
 
-function setState(updater: (s: State) => State) {
-  state = updater(state);
-  persist();
-  listeners.forEach((l) => l());
-}
+      const ultBenef = lBenefs[lBenefs.length - 1];
+      const pesoAtual = ultBenef ? Number(ultBenef.peso_depois) : Number(l.peso_bruto);
+      const custoBenef = lBenefs.reduce((a, b) => a + Number(b.custo_beneficiamento || 0), 0);
+      const ultVenda = lVendas[lVendas.length - 1];
 
-export function subscribe(l: () => void) {
-  listeners.add(l);
-  return () => listeners.delete(l);
-}
+      const movimentacoes: Movimentacao[] = [
+        {
+          id: `entrada-${l.id}`,
+          data: l.data_entrada,
+          tipo: "entrada",
+          descricao: `Entrada de ${Number(l.peso_bruto).toFixed(1)} kg`,
+          operador: "—",
+        },
+        ...lMovs.map((m) => ({
+          id: m.id,
+          data: m.criado_em,
+          tipo: "movimentacao" as const,
+          descricao:
+            `Movido de ${locById.get(m.localizacao_origem_id ?? "") ?? "—"} para ${locById.get(m.localizacao_destino_id ?? "") ?? "—"}` +
+            (m.observacoes ? ` (${m.observacoes})` : ""),
+          localizacaoAntes: locById.get(m.localizacao_origem_id ?? "") ?? undefined,
+          localizacaoDepois: locById.get(m.localizacao_destino_id ?? "") ?? undefined,
+          operador: "—",
+        })),
+        ...lBenefs.map((b) => ({
+          id: b.id,
+          data: b.criado_em,
+          tipo: "beneficiamento" as const,
+          descricao:
+            `Beneficiamento: ${Number(b.peso_antes).toFixed(1)} → ${Number(b.peso_depois).toFixed(1)} kg` +
+            (b.custo_beneficiamento ? ` · custo R$ ${Number(b.custo_beneficiamento).toFixed(2)}` : "") +
+            (b.observacoes ? ` (${b.observacoes})` : ""),
+          pesoAntes: Number(b.peso_antes),
+          pesoDepois: Number(b.peso_depois),
+          operador: "—",
+        })),
+        ...lVendas.map((v) => ({
+          id: v.id,
+          data: v.data_venda,
+          tipo: "saida" as const,
+          descricao: `Venda a R$ ${Number(v.preco_kg_venda).toFixed(2)}/kg para ${v.comprador}`,
+          operador: "—",
+        })),
+      ].sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
 
-export function getState() {
-  return state;
-}
+      return {
+        id: l.id,
+        codigo: l.codigo_lote,
+        tipoMaterialId: l.material_id,
+        fornecedorId: l.fornecedor_id,
+        pesoEntrada: Number(l.peso_bruto),
+        pesoAtual,
+        custoUnitario: Number(l.preco_kg_compra),
+        custoBeneficiamento: custoBenef,
+        localizacao: locById.get(l.localizacao_id ?? "") ?? "—",
+        localizacaoId: l.localizacao_id,
+        status: mapStatus(l.status),
+        fotos: lFotos,
+        observacoes: l.observacoes ?? undefined,
+        dataEntrada: l.data_entrada,
+        dataSaida: ultVenda?.data_venda,
+        precoVenda: ultVenda ? Number(ultVenda.preco_kg_venda) : undefined,
+        movimentacoes,
+      };
+    });
 
-export function useStore<T>(selector: (s: State) => T): T {
-  const lastRef = useRef<{ has: boolean; value: T }>({ has: false, value: undefined as unknown as T });
-  const getSnapshot = () => {
-    const next = selector(state);
-    if (lastRef.current.has && shallowEqual(lastRef.current.value, next)) {
-      return lastRef.current.value;
-    }
-    lastRef.current = { has: true, value: next };
-    return next;
-  };
-  return useSyncExternalStore(
-    (cb) => {
-      listeners.add(cb);
-      return () => listeners.delete(cb);
-    },
-    getSnapshot,
-    getSnapshot
-  );
-}
-
-// --- actions ---
-export const actions = {
-  login(role: Role) {
     setState((s) => ({
       ...s,
-      user: {
-        id: role === "gestor" ? "u1" : "u2",
-        nome: role === "gestor" ? "Ana Gestora" : "Carlos Operador",
-        role,
-      },
+      loading: false,
+      tipos: (materiais ?? []).map((m) => ({
+        id: m.id,
+        nome: m.nome,
+        categoria: m.categoria ?? undefined,
+      })),
+      fornecedores: (fornecedores ?? []).map((f) => ({
+        id: f.id,
+        nome: f.nome,
+        documento: f.cpf_cnpj ?? "",
+        cidade: f.cidade ?? "",
+      })),
+      localizacoes: (localizacoes ?? []).map((l) => ({ id: l.id, nome: l.nome })),
+      lotes: lotesAssembled,
     }));
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : "Erro ao carregar dados";
+    setState((s) => ({ ...s, loading: false, error: msg }));
+  }
+}
+
+// ===== Realtime =====
+let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
+let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleReload() {
+  if (reloadTimer) clearTimeout(reloadTimer);
+  reloadTimer = setTimeout(() => {
+    reloadTimer = null;
+    void loadAll();
+  }, 250);
+}
+
+function setupRealtime() {
+  if (realtimeChannel) return;
+  realtimeChannel = supabase
+    .channel("patio-realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: "lotes" }, scheduleReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "fotos_lote" }, scheduleReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "beneficiamentos" }, scheduleReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "vendas" }, scheduleReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "movimentacoes" }, scheduleReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "fornecedores" }, scheduleReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "materiais" }, scheduleReload)
+    .on("postgres_changes", { event: "*", schema: "public", table: "localizacoes_patio" }, scheduleReload)
+    .subscribe();
+}
+
+function teardownRealtime() {
+  if (realtimeChannel) {
+    void supabase.removeChannel(realtimeChannel);
+    realtimeChannel = null;
+  }
+}
+
+// ===== Auth =====
+async function loadUserProfile(userId: string, email: string): Promise<User | null> {
+  const { data } = await supabase.from("usuarios").select("*").eq("id", userId).maybeSingle();
+  if (!data) return { id: userId, nome: email.split("@")[0], role: "operador", email };
+  return {
+    id: data.id,
+    nome: data.nome,
+    role: (data.perfil as Role) ?? "operador",
+    email: data.email,
+  };
+}
+
+export async function initAuth() {
+  // initial session
+  const { data: sess } = await supabase.auth.getSession();
+  if (sess.session) {
+    const u = await loadUserProfile(sess.session.user.id, sess.session.user.email ?? "");
+    setState((s) => ({ ...s, user: u, authChecked: true }));
+    setupRealtime();
+    void loadAll();
+  } else {
+    setState((s) => ({ ...s, authChecked: true }));
+  }
+
+  supabase.auth.onAuthStateChange((_event, session) => {
+    if (session) {
+      // defer to avoid potential deadlock with supabase client
+      setTimeout(async () => {
+        const u = await loadUserProfile(session.user.id, session.user.email ?? "");
+        setState((s) => ({ ...s, user: u, authChecked: true }));
+        setupRealtime();
+        void loadAll();
+      }, 0);
+    } else {
+      teardownRealtime();
+      setState((s) => ({
+        ...s,
+        user: null,
+        authChecked: true,
+        tipos: [],
+        fornecedores: [],
+        localizacoes: [],
+        lotes: [],
+      }));
+    }
+  });
+}
+
+// Hook conveniente para garantir init e refetch
+export function useAppData() {
+  useEffect(() => {
+    if (state.user && state.lotes.length === 0 && !state.loading) {
+      void loadAll();
+    }
+  }, []);
+}
+
+// ===== Helpers =====
+async function ensureLocalizacao(nome: string): Promise<string | null> {
+  if (!nome) return null;
+  const found = state.localizacoes.find((l) => l.nome.toLowerCase() === nome.toLowerCase());
+  if (found) return found.id;
+  const { data, error } = await supabase
+    .from("localizacoes_patio")
+    .insert({ nome, ativo: true })
+    .select()
+    .single();
+  if (error) throw error;
+  return data.id;
+}
+
+async function uploadFotos(loteId: string, files: File[]): Promise<void> {
+  if (!files.length) return;
+  for (const file of files) {
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${loteId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("fotos-lote").upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type || "image/jpeg",
+    });
+    if (upErr) throw upErr;
+    const { data: pub } = supabase.storage.from("fotos-lote").getPublicUrl(path);
+    const { error: insErr } = await supabase.from("fotos_lote").insert({
+      lote_id: loteId,
+      url_foto: pub.publicUrl,
+    });
+    if (insErr) throw insErr;
+  }
+}
+
+async function nextCodigoLote(): Promise<string> {
+  const { count } = await supabase.from("lotes").select("*", { count: "exact", head: true });
+  const n = (count ?? 0) + 1;
+  return `LT-${String(1000 + n)}`;
+}
+
+// ===== Actions =====
+export const actions = {
+  async loginEmail(email: string, password: string) {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
   },
-  logout() {
-    setState((s) => ({ ...s, user: null }));
+  async signupEmail(email: string, password: string, nome: string) {
+    const redirectUrl = `${window.location.origin}/`;
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: { nome, perfil: "operador" },
+      },
+    });
+    if (error) throw error;
   },
-  addLote(input: {
+  async logout() {
+    await supabase.auth.signOut();
+  },
+  async addLote(input: {
     tipoMaterialId: string;
     fornecedorId: string;
     pesoEntrada: number;
     custoUnitario: number;
     localizacao: string;
-    fotos: string[];
+    fotos: File[];
     observacoes?: string;
-  }) {
-    const id = `l${Date.now()}`;
-    const codigo = `LT-${String(1000 + state.lotes.length + 1)}`;
-    const dataEntrada = new Date().toISOString();
-    const lote: Lote = {
-      custoBeneficiamento: 0,
-      id,
-      codigo,
-      tipoMaterialId: input.tipoMaterialId,
-      fornecedorId: input.fornecedorId,
-      pesoEntrada: input.pesoEntrada,
-      pesoAtual: input.pesoEntrada,
-      custoUnitario: input.custoUnitario,
-      localizacao: input.localizacao,
-      status: "estoque",
-      fotos: input.fotos,
-      observacoes: input.observacoes,
-      dataEntrada,
-      movimentacoes: [
-        {
-          id: `m${Date.now()}`,
-          data: dataEntrada,
-          tipo: "entrada",
-          descricao: `Entrada de ${input.pesoEntrada} kg`,
-          operador: state.user?.nome ?? "Operador",
-        },
-      ],
-    };
-    setState((s) => ({ ...s, lotes: [lote, ...s.lotes] }));
-    return lote;
+  }): Promise<Lote> {
+    const localizacaoId = await ensureLocalizacao(input.localizacao);
+    const codigo = await nextCodigoLote();
+    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+    const { data, error } = await supabase
+      .from("lotes")
+      .insert({
+        codigo_lote: codigo,
+        material_id: input.tipoMaterialId,
+        fornecedor_id: input.fornecedorId,
+        peso_bruto: input.pesoEntrada,
+        preco_kg_compra: input.custoUnitario,
+        localizacao_id: localizacaoId,
+        status: "recebido",
+        observacoes: input.observacoes,
+        criado_por: userId,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+
+    if (input.fotos.length) {
+      try {
+        await uploadFotos(data.id, input.fotos);
+      } catch (e) {
+        console.error("upload fotos falhou", e);
+      }
+    }
+
+    await loadAll();
+    const l = state.lotes.find((x) => x.id === data.id);
+    if (!l) throw new Error("Lote criado mas não encontrado");
+    return l;
   },
-  movimentarLote(loteId: string, novaLocalizacao: string) {
-    setState((s) => ({
-      ...s,
-      lotes: s.lotes.map((l) =>
-        l.id === loteId
-          ? {
-              ...l,
-              localizacao: novaLocalizacao,
-              movimentacoes: [
-                ...l.movimentacoes,
-                {
-                  id: `m${Date.now()}`,
-                  data: new Date().toISOString(),
-                  tipo: "movimentacao",
-                  descricao: `Movido de ${l.localizacao} para ${novaLocalizacao}`,
-                  localizacaoAntes: l.localizacao,
-                  localizacaoDepois: novaLocalizacao,
-                  operador: state.user?.nome ?? "Operador",
-                },
-              ],
-            }
-          : l
-      ),
-    }));
+  async movimentarLote(loteId: string, novaLocalizacao: string) {
+    const lote = state.lotes.find((l) => l.id === loteId);
+    if (!lote) throw new Error("Lote não encontrado");
+    const destinoId = await ensureLocalizacao(novaLocalizacao);
+    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+    const { error: e1 } = await supabase.from("movimentacoes").insert({
+      lote_id: loteId,
+      tipo_movimentacao: "transferencia",
+      localizacao_origem_id: lote.localizacaoId,
+      localizacao_destino_id: destinoId,
+      criado_por: userId,
+    });
+    if (e1) throw e1;
+    const { error: e2 } = await supabase
+      .from("lotes")
+      .update({ localizacao_id: destinoId })
+      .eq("id", loteId);
+    if (e2) throw e2;
   },
-  beneficiarLote(loteId: string, novoPeso: number, custoBenef: number = 0, observacao?: string) {
-    setState((s) => ({
-      ...s,
-      lotes: s.lotes.map((l) =>
-        l.id === loteId
-          ? {
-              ...l,
-              pesoAtual: novoPeso,
-              custoBeneficiamento: (l.custoBeneficiamento || 0) + (custoBenef || 0),
-              status: "beneficiamento" as StatusLote,
-              movimentacoes: [
-                ...l.movimentacoes,
-                {
-                  id: `m${Date.now()}`,
-                  data: new Date().toISOString(),
-                  tipo: "beneficiamento",
-                  descricao:
-                    `Beneficiamento: ${l.pesoAtual.toFixed(1)} → ${novoPeso.toFixed(1)} kg` +
-                    (custoBenef ? ` · custo R$ ${custoBenef.toFixed(2)}` : "") +
-                    (observacao ? ` (${observacao})` : ""),
-                  pesoAntes: l.pesoAtual,
-                  pesoDepois: novoPeso,
-                  operador: state.user?.nome ?? "Operador",
-                },
-              ],
-            }
-          : l
-      ),
-    }));
+  async beneficiarLote(loteId: string, novoPeso: number, custoBenef = 0, observacao?: string) {
+    const lote = state.lotes.find((l) => l.id === loteId);
+    if (!lote) throw new Error("Lote não encontrado");
+    const { error: e1 } = await supabase.from("beneficiamentos").insert({
+      lote_id: loteId,
+      peso_antes: lote.pesoAtual,
+      peso_depois: novoPeso,
+      custo_beneficiamento: custoBenef,
+      observacoes: observacao,
+    });
+    if (e1) throw e1;
+    const { error: e2 } = await supabase
+      .from("lotes")
+      .update({ status: "em_beneficiamento" })
+      .eq("id", loteId);
+    if (e2) throw e2;
   },
-  venderLote(loteId: string, precoVenda: number) {
-    setState((s) => ({
-      ...s,
-      lotes: s.lotes.map((l) =>
-        l.id === loteId
-          ? {
-              ...l,
-              status: "vendido" as StatusLote,
-              precoVenda,
-              dataSaida: new Date().toISOString(),
-              movimentacoes: [
-                ...l.movimentacoes,
-                {
-                  id: `m${Date.now()}`,
-                  data: new Date().toISOString(),
-                  tipo: "saida",
-                  descricao: `Venda a R$ ${precoVenda.toFixed(2)}/kg`,
-                  operador: state.user?.nome ?? "Operador",
-                },
-              ],
-            }
-          : l
-      ),
-    }));
+  async venderLote(loteId: string, precoVenda: number, comprador = "Comprador") {
+    const lote = state.lotes.find((l) => l.id === loteId);
+    if (!lote) throw new Error("Lote não encontrado");
+    const { error: e1 } = await supabase.from("vendas").insert({
+      lote_id: loteId,
+      comprador,
+      peso_vendido: lote.pesoAtual,
+      preco_kg_venda: precoVenda,
+    });
+    if (e1) throw e1;
+    const { error: e2 } = await supabase
+      .from("lotes")
+      .update({ status: "vendido_total" })
+      .eq("id", loteId);
+    if (e2) throw e2;
   },
-  addFotos(loteId: string, fotos: string[]) {
-    if (fotos.length === 0) return;
-    setState((s) => ({
-      ...s,
-      lotes: s.lotes.map((l) =>
-        l.id === loteId ? { ...l, fotos: [...l.fotos, ...fotos] } : l
-      ),
-    }));
+  async addFotos(loteId: string, files: File[]) {
+    if (!files.length) return;
+    await uploadFotos(loteId, files);
   },
-  removeFoto(loteId: string, index: number) {
-    setState((s) => ({
-      ...s,
-      lotes: s.lotes.map((l) =>
-        l.id === loteId ? { ...l, fotos: l.fotos.filter((_, i) => i !== index) } : l
-      ),
-    }));
+  async removeFoto(loteId: string, fotoId: string) {
+    const lote = state.lotes.find((l) => l.id === loteId);
+    const foto = lote?.fotos.find((f) => f.id === fotoId);
+    if (foto) {
+      // tenta extrair path do bucket: .../fotos-lote/<path>
+      const m = foto.url.match(/\/fotos-lote\/(.+)$/);
+      if (m) await supabase.storage.from("fotos-lote").remove([m[1]]);
+    }
+    const { error } = await supabase.from("fotos_lote").delete().eq("id", fotoId);
+    if (error) throw error;
   },
-  editLote(loteId: string, patch: Partial<Pick<Lote, "tipoMaterialId" | "fornecedorId" | "custoUnitario" | "localizacao" | "observacoes">>) {
-    setState((s) => ({
-      ...s,
-      lotes: s.lotes.map((l) => (l.id === loteId ? { ...l, ...patch } : l)),
-    }));
+  async editLote(
+    loteId: string,
+    patch: Partial<{
+      tipoMaterialId: string;
+      fornecedorId: string;
+      custoUnitario: number;
+      localizacao: string;
+      observacoes: string;
+    }>
+  ) {
+    const update: Record<string, unknown> = {};
+    if (patch.tipoMaterialId) update.material_id = patch.tipoMaterialId;
+    if (patch.fornecedorId) update.fornecedor_id = patch.fornecedorId;
+    if (patch.custoUnitario !== undefined) update.preco_kg_compra = patch.custoUnitario;
+    if (patch.observacoes !== undefined) update.observacoes = patch.observacoes;
+    if (patch.localizacao) {
+      update.localizacao_id = await ensureLocalizacao(patch.localizacao);
+    }
+    const { error } = await supabase.from("lotes").update(update).eq("id", loteId);
+    if (error) throw error;
   },
-  addFornecedor(f: Omit<Fornecedor, "id">) {
-    setState((s) => ({
-      ...s,
-      fornecedores: [...s.fornecedores, { ...f, id: `f${Date.now()}` }],
-    }));
+  async addFornecedor(f: { nome: string; documento: string; cidade: string }) {
+    const { error } = await supabase
+      .from("fornecedores")
+      .insert({ nome: f.nome, cpf_cnpj: f.documento || null, cidade: f.cidade || null });
+    if (error) throw error;
   },
-  addTipo(t: Omit<TipoMaterial, "id">) {
-    setState((s) => ({ ...s, tipos: [...s.tipos, { ...t, id: `t${Date.now()}` }] }));
+  async addTipo(t: { nome: string; precoMedioCompra?: number; precoMedioVenda?: number; categoria?: string }) {
+    const { error } = await supabase
+      .from("materiais")
+      .insert({ nome: t.nome, categoria: t.categoria ?? null, ativo: true });
+    if (error) throw error;
   },
-  resetSeed() {
-    state = { ...seed, lotes: generateSeedLotes(), user: state.user };
-    persist();
-    listeners.forEach((l) => l());
+  async refresh() {
+    await loadAll();
   },
 };
 
+// ===== Format helpers =====
 export function fmtBRL(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
