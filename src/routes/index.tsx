@@ -14,6 +14,7 @@ let authInitialized = false;
 function LoginPage() {
   const user = useStore((s) => s.user);
   const authChecked = useStore((s) => s.authChecked);
+  const authError = useStore((s) => s.authError);
   const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -127,6 +128,18 @@ function LoginPage() {
               autoComplete={mode === "login" ? "current-password" : "new-password"}
             />
           </div>
+          {authError && (
+            <div className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-md p-2">
+              {authError}
+              <button
+                type="button"
+                onClick={() => actions.logout()}
+                className="ml-2 underline"
+              >
+                Sair
+              </button>
+            </div>
+          )}
           <button type="submit" disabled={busy} className={btnPrimary + " w-full justify-center"}>
             {busy ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}
           </button>
