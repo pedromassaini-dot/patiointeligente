@@ -328,7 +328,9 @@ type ProfileResult =
   | { ok: false; error: string };
 
 async function loadUserProfile(userId: string, email: string): Promise<ProfileResult> {
-  // 1) Try by id
+  const safeEmail = email.trim().toLowerCase();
+
+  // 1) Try by auth user id
   const byId = await supabase.from("usuarios").select("*").eq("id", userId).maybeSingle();
   if (byId.error) {
     return { ok: false, error: `Não foi possível ler seu perfil: ${byId.error.message}` };
@@ -346,8 +348,8 @@ async function loadUserProfile(userId: string, email: string): Promise<ProfileRe
   }
 
   // 2) Try by email (legacy records that may have a different id)
-  if (email) {
-    const byEmail = await supabase.from("usuarios").select("*").eq("email", email).maybeSingle();
+  if (safeEmail) {
+    const byEmail = await supabase.from("usuarios").select("*").ilike("email", safeEmail).maybeSingle();
     if (byEmail.error) {
       return { ok: false, error: `Não foi possível ler seu perfil: ${byEmail.error.message}` };
     }
@@ -364,33 +366,14 @@ async function loadUserProfile(userId: string, email: string): Promise<ProfileRe
     }
   }
 
-  // 3) New user: create as operador (default)
-  const insert = await supabase
-    .from("usuarios")
-    .insert({
-      id: userId,
-      nome: email.split("@")[0] || "Usuário",
-      email,
-      perfil: "operador",
-    })
-    .select()
-    .maybeSingle();
-  if (insert.error || !insert.data) {
-    return {
-      ok: false,
-      error: `Não foi possível criar seu perfil: ${insert.error?.message ?? "erro desconhecido"}`,
-    };
-  }
   return {
-    ok: true,
-    user: {
-      id: insert.data.id,
-      nome: insert.data.nome,
-      role: insert.data.perfil as Role,
-      email: insert.data.email,
-    },
+    ok: false,
+    error:
+      "Não foi possível encontrar seu perfil em usuários. Verifique se seu cadastro existe e tente novamente.",
   };
 }
+
+let authInitPromise: Promise<void> | null = null;
 
 async function applySession(userId: string, email: string) {
   const res = await loadUserProfile(userId, email);
@@ -404,6 +387,9 @@ async function applySession(userId: string, email: string) {
 }
 
 export async function initAuth() {
+  if (authInitPromise) return authInitPromise;
+
+  authInitPromise = (async () => {
   const { data: sess } = await supabase.auth.getSession();
   if (sess.session) {
     await applySession(sess.session.user.id, sess.session.user.email ?? "");
@@ -431,6 +417,9 @@ export async function initAuth() {
       }));
     }
   });
+  })();
+
+  return authInitPromise;
 }
 
 // Hook conveniente para garantir init e refetch
@@ -485,8 +474,19 @@ async function nextCodigoLote(): Promise<string> {
 // ===== Actions =====
 export const actions = {
   async loginEmail(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    setState((s) => ({ ...s, authError: null, authChecked: false }));
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setState((s) => ({ ...s, user: null, authError: error.message, authChecked: true }));
+      throw error;
+    }
+    const sessionUser = data.user ?? data.session?.user;
+    if (!sessionUser) {
+      const message = "Login concluído, mas não foi possível identificar o usuário autenticado.";
+      setState((s) => ({ ...s, user: null, authError: message, authChecked: true }));
+      throw new Error(message);
+    }
+    await applySession(sessionUser.id, sessionUser.email ?? email);
   },
   async signupEmail(email: string, password: string, nome: string) {
     const redirectUrl = `${window.location.origin}/`;
@@ -495,23 +495,13 @@ export const actions = {
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: { nome, perfil: "operador" },
+        data: { nome },
       },
     });
     if (error) throw error;
   },
   async logout() {
     await supabase.auth.signOut();
-    // Clear any cached data
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('supabase.auth.token');
-      // Clear any other supabase related keys
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('supabase.')) {
-          localStorage.removeItem(key);
-        }
-      });
-    }
   },
   async refreshProfile() {
     const { data: sess } = await supabase.auth.getSession();

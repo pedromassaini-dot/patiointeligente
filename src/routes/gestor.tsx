@@ -25,7 +25,7 @@ import {
   MapPin,
   Filter,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -43,24 +43,27 @@ export const Route = createFileRoute("/gestor")({
 function GestorPage() {
   const user = useStore((s) => s.user);
   const navigate = useNavigate();
-
-  if (!user || user.role !== "gestor") {
-    navigate({ to: "/dashboard" });
-    return null;
-  }
-
   const { lotes, tipos, fornecedores } = useStore((s) => ({
     lotes: s.lotes,
     tipos: s.tipos,
     fornecedores: s.fornecedores,
   }));
-
-  // ===== Filtros =====
   const [periodo, setPeriodo] = useState<"7" | "30" | "90" | "365" | "all">("all");
   const [fornecedorId, setFornecedorId] = useState("");
   const [materialId, setMaterialId] = useState("");
   const [localizacao, setLocalizacao] = useState("");
 
+  useEffect(() => {
+    if (!user || user.role !== "gestor") {
+      void navigate({ to: "/dashboard" });
+    }
+  }, [user, navigate]);
+
+  if (!user || user.role !== "gestor") {
+    return null;
+  }
+
+  // ===== Filtros =====
   const localizacoes = useMemo(
     () => Array.from(new Set(lotes.map((l) => l.localizacao))).sort(),
     [lotes]

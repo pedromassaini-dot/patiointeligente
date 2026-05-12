@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader, Field, inputCls, btnPrimary } from "@/components/ui-bits";
 import { useStore, actions } from "@/lib/store";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Truck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -13,17 +13,21 @@ export const Route = createFileRoute("/fornecedores")({
 function FornecedoresPage() {
   const user = useStore((s) => s.user);
   const navigate = useNavigate();
-
-  if (!user || user.role !== "gestor") {
-    navigate({ to: "/dashboard" });
-    return null;
-  }
-
   const { fornecedores, lotes } = useStore((s) => ({ fornecedores: s.fornecedores, lotes: s.lotes }));
   const [open, setOpen] = useState(false);
   const [nome, setNome] = useState("");
   const [doc, setDoc] = useState("");
   const [cidade, setCidade] = useState("");
+
+  useEffect(() => {
+    if (!user || user.role !== "gestor") {
+      void navigate({ to: "/dashboard" });
+    }
+  }, [user, navigate]);
+
+  if (!user || user.role !== "gestor") {
+    return null;
+  }
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();

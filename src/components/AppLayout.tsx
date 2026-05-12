@@ -15,7 +15,7 @@ import {
   Briefcase,
   RefreshCw,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { actions, useStore, type Role } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +41,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const path = useRouterState({ select: (r) => r.location.pathname });
   const [open, setOpen] = useState(false);
 
+  useEffect(() => {
+    if (authChecked && !user && path !== "/") {
+      void navigate({ to: "/" });
+    }
+  }, [authChecked, user, path, navigate]);
+
   if (!authChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center text-sm text-muted-foreground">
@@ -50,10 +56,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    if (typeof window !== "undefined" && path !== "/") {
-      navigate({ to: "/" });
-    }
-    return <>{children}</>;
+    return path === "/" ? <>{children}</> : null;
   }
 
   const items = NAV.filter((i) => i.roles.includes(user.role));
