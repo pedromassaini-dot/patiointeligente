@@ -517,8 +517,9 @@ export const actions = {
     const { data: sess } = await supabase.auth.getSession();
     if (sess.session) {
       await supabase.auth.refreshSession();
-      const u = await loadUserProfile(sess.session.user.id, sess.session.user.email ?? "");
-      setState((s) => ({ ...s, user: u }));
+      const { data: sess2 } = await supabase.auth.getSession();
+      const s2 = sess2.session ?? sess.session;
+      await applySession(s2.user.id, s2.user.email ?? "");
     }
   },
   async addLote(input: {
