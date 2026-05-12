@@ -35,6 +35,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
+import { useEffect } from "react";
 
 export const Route = createFileRoute("/gestor")({
   component: GestorPage,
@@ -44,8 +45,13 @@ function GestorPage() {
   const user = useStore((s) => s.user);
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (!user || user.role !== "gestor") {
+      void navigate({ to: "/dashboard" });
+    }
+  }, [user, navigate]);
+
   if (!user || user.role !== "gestor") {
-    navigate({ to: "/dashboard" });
     return null;
   }
 
