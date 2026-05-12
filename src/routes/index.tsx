@@ -128,6 +128,18 @@ function LoginPage() {
               autoComplete={mode === "login" ? "current-password" : "new-password"}
             />
           </div>
+          {authError && (
+            <div className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-md p-2">
+              {authError}
+              <button
+                type="button"
+                onClick={() => actions.logout()}
+                className="ml-2 underline"
+              >
+                Sair
+              </button>
+            </div>
+          )}
           <button type="submit" disabled={busy} className={btnPrimary + " w-full justify-center"}>
             {busy ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}
           </button>
