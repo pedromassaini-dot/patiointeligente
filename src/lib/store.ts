@@ -83,6 +83,7 @@ export type Lote = {
 type State = {
   user: User | null;
   authChecked: boolean;
+  authError: string | null;
   loading: boolean;
   error: string | null;
   tipos: TipoMaterial[];
