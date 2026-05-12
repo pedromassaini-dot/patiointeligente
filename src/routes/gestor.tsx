@@ -25,7 +25,7 @@ import {
   MapPin,
   Filter,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -35,7 +35,6 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
-import { useEffect } from "react";
 
 export const Route = createFileRoute("/gestor")({
   component: GestorPage,
