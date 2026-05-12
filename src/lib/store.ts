@@ -474,8 +474,16 @@ async function nextCodigoLote(): Promise<string> {
 // ===== Actions =====
 export const actions = {
   async loginEmail(email: string, password: string) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    setState((s) => ({ ...s, authError: null, authChecked: false }));
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    const sessionUser = data.user ?? data.session?.user;
+    if (!sessionUser) {
+      const message = "Login concluído, mas não foi possível identificar o usuário autenticado.";
+      setState((s) => ({ ...s, user: null, authError: message, authChecked: true }));
+      throw new Error(message);
+    }
+    await applySession(sessionUser.id, sessionUser.email ?? email);
   },
   async signupEmail(email: string, password: string, nome: string) {
     const redirectUrl = `${window.location.origin}/`;
@@ -491,16 +499,6 @@ export const actions = {
   },
   async logout() {
     await supabase.auth.signOut();
-    // Clear any cached data
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('supabase.auth.token');
-      // Clear any other supabase related keys
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('supabase.')) {
-          localStorage.removeItem(key);
-        }
-      });
-    }
   },
   async refreshProfile() {
     const { data: sess } = await supabase.auth.getSession();
