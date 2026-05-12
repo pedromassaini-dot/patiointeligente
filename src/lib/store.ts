@@ -95,6 +95,7 @@ type State = {
 let state: State = {
   user: null,
   authChecked: false,
+  authError: null,
   loading: false,
   error: null,
   tipos: [],
