@@ -476,7 +476,10 @@ export const actions = {
   async loginEmail(email: string, password: string) {
     setState((s) => ({ ...s, authError: null, authChecked: false }));
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    if (error) {
+      setState((s) => ({ ...s, user: null, authError: error.message, authChecked: true }));
+      throw error;
+    }
     const sessionUser = data.user ?? data.session?.user;
     if (!sessionUser) {
       const message = "Login concluído, mas não foi possível identificar o usuário autenticado.";
@@ -492,7 +495,7 @@ export const actions = {
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: { nome, perfil: "operador" },
+        data: { nome },
       },
     });
     if (error) throw error;
