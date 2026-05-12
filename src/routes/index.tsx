@@ -14,6 +14,7 @@ let authInitialized = false;
 function LoginPage() {
   const user = useStore((s) => s.user);
   const authChecked = useStore((s) => s.authChecked);
+  const authError = useStore((s) => s.authError);
   const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
