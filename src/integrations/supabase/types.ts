@@ -398,6 +398,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      is_gestor: { Args: { _user_id: string }; Returns: boolean }
       tem_perfil: {
         Args: {
           _perfil: Database["public"]["Enums"]["perfil_usuario"]
