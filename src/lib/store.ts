@@ -323,66 +323,106 @@ function teardownRealtime() {
 }
 
 // ===== Auth =====
-async function loadUserProfile(userId: string, email: string): Promise<User | null> {
-  // First, try to find the user by id (primary key)
-  const { data, error } = await supabase.from("usuarios").select("*").eq("id", userId).maybeSingle();
-  if (data) {
-    // User exists, use the exact profile from database
+type ProfileResult =
+  | { ok: true; user: User }
+  | { ok: false; error: string };
+
+async function loadUserProfile(userId: string, email: string): Promise<ProfileResult> {
+  // 1) Try by id
+  const byId = await supabase.from("usuarios").select("*").eq("id", userId).maybeSingle();
+  if (byId.error) {
+    return { ok: false, error: `Não foi possível ler seu perfil: ${byId.error.message}` };
+  }
+  if (byId.data) {
     return {
-      id: data.id,
-      nome: data.nome,
-      role: data.perfil as Role,
-      email: data.email,
+      ok: true,
+      user: {
+        id: byId.data.id,
+        nome: byId.data.nome,
+        role: byId.data.perfil as Role,
+        email: byId.data.email,
+      },
     };
   }
-  // User does not exist, insert a new operator user (fallback, though trigger should handle this)
-  const { data: insertData, error: insertError } = await supabase
+
+  // 2) Try by email (legacy records that may have a different id)
+  if (email) {
+    const byEmail = await supabase.from("usuarios").select("*").eq("email", email).maybeSingle();
+    if (byEmail.error) {
+      return { ok: false, error: `Não foi possível ler seu perfil: ${byEmail.error.message}` };
+    }
+    if (byEmail.data) {
+      return {
+        ok: true,
+        user: {
+          id: byEmail.data.id,
+          nome: byEmail.data.nome,
+          role: byEmail.data.perfil as Role,
+          email: byEmail.data.email,
+        },
+      };
+    }
+  }
+
+  // 3) New user: create as operador (default)
+  const insert = await supabase
     .from("usuarios")
     .insert({
       id: userId,
-      nome: email.split("@")[0],
-      email: email,
-      perfil: "operador"
+      nome: email.split("@")[0] || "Usuário",
+      email,
+      perfil: "operador",
     })
     .select()
     .maybeSingle();
-  if (insertData) {
+  if (insert.error || !insert.data) {
     return {
-      id: insertData.id,
-      nome: insertData.nome,
-      role: insertData.perfil as Role,
-      email: insertData.email,
+      ok: false,
+      error: `Não foi possível criar seu perfil: ${insert.error?.message ?? "erro desconhecido"}`,
     };
   }
-  return { id: userId, nome: email.split("@")[0], role: "operador", email };
+  return {
+    ok: true,
+    user: {
+      id: insert.data.id,
+      nome: insert.data.nome,
+      role: insert.data.perfil as Role,
+      email: insert.data.email,
+    },
+  };
 }
 
-export async function initAuth() {
-  // initial session
-  const { data: sess } = await supabase.auth.getSession();
-  if (sess.session) {
-    const u = await loadUserProfile(sess.session.user.id, sess.session.user.email ?? "");
-    setState((s) => ({ ...s, user: u, authChecked: true }));
+async function applySession(userId: string, email: string) {
+  const res = await loadUserProfile(userId, email);
+  if (res.ok) {
+    setState((s) => ({ ...s, user: res.user, authError: null, authChecked: true }));
     setupRealtime();
     void loadAll();
   } else {
-    setState((s) => ({ ...s, authChecked: true }));
+    setState((s) => ({ ...s, user: null, authError: res.error, authChecked: true }));
+  }
+}
+
+export async function initAuth() {
+  const { data: sess } = await supabase.auth.getSession();
+  if (sess.session) {
+    await applySession(sess.session.user.id, sess.session.user.email ?? "");
+  } else {
+    setState((s) => ({ ...s, authChecked: true, authError: null }));
   }
 
-  supabase.auth.onAuthStateChange(async (event, session) => {
+  supabase.auth.onAuthStateChange((event, session) => {
     if (session) {
       // defer to avoid potential deadlock with supabase client
-      setTimeout(async () => {
-        const u = await loadUserProfile(session.user.id, session.user.email ?? "");
-        setState((s) => ({ ...s, user: u, authChecked: true }));
-        setupRealtime();
-        void loadAll();
+      setTimeout(() => {
+        void applySession(session.user.id, session.user.email ?? "");
       }, 0);
     } else {
       teardownRealtime();
       setState((s) => ({
         ...s,
         user: null,
+        authError: null,
         authChecked: true,
         tipos: [],
         fornecedores: [],
