@@ -74,14 +74,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 import { useEffect } from "react";
 import { initAuth } from "@/lib/store";
 
-let _authInited = false;
-
 function RootComponent() {
   useEffect(() => {
-    if (!_authInited) {
-      _authInited = true;
-      void initAuth();
-    }
+    // Single authoritative initAuth call for the whole app.
+    // initAuth handles the listener-once guard internally.
+    void initAuth();
   }, []);
   return (
     <>

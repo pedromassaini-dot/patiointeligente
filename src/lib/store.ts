@@ -16,7 +16,7 @@ function shallowEqual(a: unknown, b: unknown): boolean {
   return true;
 }
 
-// ===== Types (camelCase, used by UI) =====
+// ===== Types =====
 export type Role = "operador" | "gestor";
 export type User = { id: string; nome: string; role: Role; email: string };
 
@@ -67,9 +67,9 @@ export type Lote = {
   fornecedorId: string;
   pesoEntrada: number;
   pesoAtual: number;
-  custoUnitario: number; // R$/kg compra
-  custoBeneficiamento: number; // soma
-  localizacao: string; // nome
+  custoUnitario: number;
+  custoBeneficiamento: number;
+  localizacao: string;
   localizacaoId: string | null;
   status: StatusLote;
   fotos: Foto[];
@@ -140,7 +140,7 @@ export function useStore<T>(selector: (s: State) => T): T {
   );
 }
 
-// ===== Cálculos automáticos (espelham triggers do banco) =====
+// ===== Financial helpers =====
 export function custoTotalCompra(l: Pick<Lote, "pesoEntrada" | "custoUnitario">) {
   return l.pesoEntrada * l.custoUnitario;
 }
@@ -164,7 +164,7 @@ export function margemEstimada(pesoVendido: number, precoKgVenda: number, custoF
   return receitaTotal(pesoVendido, precoKgVenda) - custoProporcional(pesoVendido, custoFinal);
 }
 
-// ===== Carregamento de dados =====
+// ===== Data loading =====
 async function loadAll() {
   setState((s) => ({ ...s, loading: true, error: null }));
   try {
@@ -292,6 +292,7 @@ async function loadAll() {
 // ===== Realtime =====
 let realtimeChannel: ReturnType<typeof supabase.channel> | null = null;
 let reloadTimer: ReturnType<typeof setTimeout> | null = null;
+
 function scheduleReload() {
   if (reloadTimer) clearTimeout(reloadTimer);
   reloadTimer = setTimeout(() => {
@@ -323,106 +324,111 @@ function teardownRealtime() {
 }
 
 // ===== Auth =====
-type ProfileResult =
-  | { ok: true; user: User }
-  | { ok: false; error: string };
+// Fetches user profile from `usuarios` by auth user id, with email fallback.
+// Never defaults to operador — if no profile exists, returns a clear error.
+async function fetchUserProfile(userId: string, userEmail?: string): Promise<{ user: User } | { error: string }> {
+  // Primary: look up by id (matches RLS USING auth.uid() = id)
+  const { data, error } = await supabase
+    .from("usuarios")
+    .select("id, email, nome, perfil")
+    .eq("id", userId)
+    .maybeSingle();
 
-async function loadUserProfile(userId: string, email: string): Promise<ProfileResult> {
-  const safeEmail = email.trim().toLowerCase();
-
-  // 1) Try by auth user id
-  const byId = await supabase.from("usuarios").select("*").eq("id", userId).maybeSingle();
-  if (byId.error) {
-    return { ok: false, error: `Não foi possível ler seu perfil: ${byId.error.message}` };
+  if (error) {
+    return { error: `Erro ao buscar perfil: ${error.message} (código: ${(error as { code?: string }).code ?? "?"})` };
   }
-  if (byId.data) {
+
+  if (data) {
     return {
-      ok: true,
       user: {
-        id: byId.data.id,
-        nome: byId.data.nome,
-        role: byId.data.perfil as Role,
-        email: byId.data.email,
+        id: data.id,
+        email: data.email,
+        nome: data.nome,
+        role: data.perfil as Role,
       },
     };
   }
 
-  // 2) Try by email (legacy records that may have a different id)
-  if (safeEmail) {
-    const byEmail = await supabase.from("usuarios").select("*").ilike("email", safeEmail).maybeSingle();
-    if (byEmail.error) {
-      return { ok: false, error: `Não foi possível ler seu perfil: ${byEmail.error.message}` };
-    }
-    if (byEmail.data) {
+  // Fallback: try to find by email (handles cases where id was not propagated)
+  if (userEmail) {
+    const { data: byEmail, error: emailErr } = await supabase
+      .from("usuarios")
+      .select("id, email, nome, perfil")
+      .eq("email", userEmail)
+      .maybeSingle();
+
+    if (!emailErr && byEmail) {
       return {
-        ok: true,
         user: {
-          id: byEmail.data.id,
-          nome: byEmail.data.nome,
-          role: byEmail.data.perfil as Role,
-          email: byEmail.data.email,
+          id: byEmail.id,
+          email: byEmail.email,
+          nome: byEmail.nome,
+          role: byEmail.perfil as Role,
         },
       };
     }
   }
 
   return {
-    ok: false,
     error:
-      "Não foi possível encontrar seu perfil em usuários. Verifique se seu cadastro existe e tente novamente.",
+      "Usuário autenticado, mas sem perfil cadastrado. " +
+      "Faça logout e login novamente, ou solicite ao gestor que verifique seu cadastro em 'Usuários'.",
   };
 }
 
-let authInitPromise: Promise<void> | null = null;
+// Tracks whether the auth state listener is already registered to avoid duplicates.
+let authListenerRegistered = false;
 
-async function applySession(userId: string, email: string) {
-  const res = await loadUserProfile(userId, email);
-  if (res.ok) {
-    setState((s) => ({ ...s, user: res.user, authError: null, authChecked: true }));
-    setupRealtime();
-    void loadAll();
-  } else {
-    setState((s) => ({ ...s, user: null, authError: res.error, authChecked: true }));
+async function applySession(userId: string, userEmail?: string) {
+  const result = await fetchUserProfile(userId, userEmail);
+
+  if ("error" in result) {
+    setState((s) => ({ ...s, user: null, authError: result.error, authChecked: true }));
+    return;
   }
+
+  setState((s) => ({ ...s, user: result.user, authError: null, authChecked: true }));
+  setupRealtime();
+  void loadAll();
 }
 
 export async function initAuth() {
-  if (authInitPromise) return authInitPromise;
+  // Always re-check the session; do not cache this across page loads.
+  setState((s) => ({ ...s, authChecked: false }));
 
-  authInitPromise = (async () => {
-  const { data: sess } = await supabase.auth.getSession();
-  if (sess.session) {
-    await applySession(sess.session.user.id, sess.session.user.email ?? "");
+  const { data: sessData } = await supabase.auth.getSession();
+  if (sessData.session) {
+    await applySession(sessData.session.user.id, sessData.session.user.email);
   } else {
     setState((s) => ({ ...s, authChecked: true, authError: null }));
   }
 
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (session) {
-      // defer to avoid potential deadlock with supabase client
-      setTimeout(() => {
-        void applySession(session.user.id, session.user.email ?? "");
-      }, 0);
-    } else {
-      teardownRealtime();
-      setState((s) => ({
-        ...s,
-        user: null,
-        authError: null,
-        authChecked: true,
-        tipos: [],
-        fornecedores: [],
-        localizacoes: [],
-        lotes: [],
-      }));
-    }
-  });
-  })();
+  // Register the listener only once per browser session.
+  if (!authListenerRegistered) {
+    authListenerRegistered = true;
+    supabase.auth.onAuthStateChange((event, session) => {
+      // Skip INITIAL_SESSION — we already handled it via getSession() above.
+      if (event === "INITIAL_SESSION") return;
 
-  return authInitPromise;
+      if (session) {
+        void applySession(session.user.id, session.user.email);
+      } else {
+        teardownRealtime();
+        setState((s) => ({
+          ...s,
+          user: null,
+          authError: null,
+          authChecked: true,
+          tipos: [],
+          fornecedores: [],
+          localizacoes: [],
+          lotes: [],
+        }));
+      }
+    });
+  }
 }
 
-// Hook conveniente para garantir init e refetch
 export function useAppData() {
   useEffect(() => {
     if (state.user && state.lotes.length === 0 && !state.loading) {
@@ -482,36 +488,36 @@ export const actions = {
     }
     const sessionUser = data.user ?? data.session?.user;
     if (!sessionUser) {
-      const message = "Login concluído, mas não foi possível identificar o usuário autenticado.";
+      const message = "Login concluído, mas não foi possível identificar o usuário.";
       setState((s) => ({ ...s, user: null, authError: message, authChecked: true }));
       throw new Error(message);
     }
     await applySession(sessionUser.id, sessionUser.email ?? email);
   },
+
   async signupEmail(email: string, password: string, nome: string) {
-    const redirectUrl = `${window.location.origin}/`;
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl,
+        emailRedirectTo: `${window.location.origin}/`,
         data: { nome },
       },
     });
     if (error) throw error;
   },
+
   async logout() {
     await supabase.auth.signOut();
   },
+
   async refreshProfile() {
     const { data: sess } = await supabase.auth.getSession();
     if (sess.session) {
-      await supabase.auth.refreshSession();
-      const { data: sess2 } = await supabase.auth.getSession();
-      const s2 = sess2.session ?? sess.session;
-      await applySession(s2.user.id, s2.user.email ?? "");
+      await applySession(sess.session.user.id, sess.session.user.email);
     }
   },
+
   async addLote(input: {
     tipoMaterialId: string;
     fornecedorId: string;
@@ -554,6 +560,7 @@ export const actions = {
     if (!l) throw new Error("Lote criado mas não encontrado");
     return l;
   },
+
   async movimentarLote(loteId: string, novaLocalizacao: string) {
     const lote = state.lotes.find((l) => l.id === loteId);
     if (!lote) throw new Error("Lote não encontrado");
@@ -573,6 +580,7 @@ export const actions = {
       .eq("id", loteId);
     if (e2) throw e2;
   },
+
   async beneficiarLote(loteId: string, novoPeso: number, custoBenef = 0, observacao?: string) {
     const lote = state.lotes.find((l) => l.id === loteId);
     if (!lote) throw new Error("Lote não encontrado");
@@ -590,6 +598,7 @@ export const actions = {
       .eq("id", loteId);
     if (e2) throw e2;
   },
+
   async venderLote(loteId: string, precoVenda: number, comprador = "Comprador") {
     const lote = state.lotes.find((l) => l.id === loteId);
     if (!lote) throw new Error("Lote não encontrado");
@@ -606,21 +615,23 @@ export const actions = {
       .eq("id", loteId);
     if (e2) throw e2;
   },
+
   async addFotos(loteId: string, files: File[]) {
     if (!files.length) return;
     await uploadFotos(loteId, files);
   },
+
   async removeFoto(loteId: string, fotoId: string) {
     const lote = state.lotes.find((l) => l.id === loteId);
     const foto = lote?.fotos.find((f) => f.id === fotoId);
     if (foto) {
-      // tenta extrair path do bucket: .../fotos-lote/<path>
       const m = foto.url.match(/\/fotos-lote\/(.+)$/);
       if (m) await supabase.storage.from("fotos-lote").remove([m[1]]);
     }
     const { error } = await supabase.from("fotos_lote").delete().eq("id", fotoId);
     if (error) throw error;
   },
+
   async editLote(
     loteId: string,
     patch: Partial<{
@@ -642,18 +653,21 @@ export const actions = {
     const { error } = await supabase.from("lotes").update(update).eq("id", loteId);
     if (error) throw error;
   },
+
   async addFornecedor(f: { nome: string; documento: string; cidade: string }) {
     const { error } = await supabase
       .from("fornecedores")
       .insert({ nome: f.nome, cpf_cnpj: f.documento || null, cidade: f.cidade || null });
     if (error) throw error;
   },
+
   async addTipo(t: { nome: string; precoMedioCompra?: number; precoMedioVenda?: number; categoria?: string }) {
     const { error } = await supabase
       .from("materiais")
       .insert({ nome: t.nome, categoria: t.categoria ?? null, ativo: true });
     if (error) throw error;
   },
+
   async refresh() {
     await loadAll();
   },

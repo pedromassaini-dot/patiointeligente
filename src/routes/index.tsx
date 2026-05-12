@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Factory } from "lucide-react";
-import { actions, useStore, initAuth } from "@/lib/store";
+import { actions, useStore } from "@/lib/store";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { inputCls, btnPrimary } from "@/components/ui-bits";
@@ -8,8 +8,6 @@ import { inputCls, btnPrimary } from "@/components/ui-bits";
 export const Route = createFileRoute("/")({
   component: LoginPage,
 });
-
-let authInitialized = false;
 
 function LoginPage() {
   const user = useStore((s) => s.user);
@@ -21,13 +19,6 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [nome, setNome] = useState("");
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!authInitialized) {
-      authInitialized = true;
-      void initAuth();
-    }
-  }, []);
 
   useEffect(() => {
     if (user) navigate({ to: user.role === "operador" ? "/operador" : "/dashboard" });
