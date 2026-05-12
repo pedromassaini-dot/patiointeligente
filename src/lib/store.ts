@@ -328,7 +328,9 @@ type ProfileResult =
   | { ok: false; error: string };
 
 async function loadUserProfile(userId: string, email: string): Promise<ProfileResult> {
-  // 1) Try by id
+  const safeEmail = email.trim().toLowerCase();
+
+  // 1) Try by auth user id
   const byId = await supabase.from("usuarios").select("*").eq("id", userId).maybeSingle();
   if (byId.error) {
     return { ok: false, error: `Não foi possível ler seu perfil: ${byId.error.message}` };
@@ -346,8 +348,8 @@ async function loadUserProfile(userId: string, email: string): Promise<ProfileRe
   }
 
   // 2) Try by email (legacy records that may have a different id)
-  if (email) {
-    const byEmail = await supabase.from("usuarios").select("*").eq("email", email).maybeSingle();
+  if (safeEmail) {
+    const byEmail = await supabase.from("usuarios").select("*").ilike("email", safeEmail).maybeSingle();
     if (byEmail.error) {
       return { ok: false, error: `Não foi possível ler seu perfil: ${byEmail.error.message}` };
     }
@@ -364,33 +366,14 @@ async function loadUserProfile(userId: string, email: string): Promise<ProfileRe
     }
   }
 
-  // 3) New user: create as operador (default)
-  const insert = await supabase
-    .from("usuarios")
-    .insert({
-      id: userId,
-      nome: email.split("@")[0] || "Usuário",
-      email,
-      perfil: "operador",
-    })
-    .select()
-    .maybeSingle();
-  if (insert.error || !insert.data) {
-    return {
-      ok: false,
-      error: `Não foi possível criar seu perfil: ${insert.error?.message ?? "erro desconhecido"}`,
-    };
-  }
   return {
-    ok: true,
-    user: {
-      id: insert.data.id,
-      nome: insert.data.nome,
-      role: insert.data.perfil as Role,
-      email: insert.data.email,
-    },
+    ok: false,
+    error:
+      "Não foi possível encontrar seu perfil em usuários. Verifique se seu cadastro existe e tente novamente.",
   };
 }
+
+let authInitPromise: Promise<void> | null = null;
 
 async function applySession(userId: string, email: string) {
   const res = await loadUserProfile(userId, email);
@@ -404,6 +387,9 @@ async function applySession(userId: string, email: string) {
 }
 
 export async function initAuth() {
+  if (authInitPromise) return authInitPromise;
+
+  authInitPromise = (async () => {
   const { data: sess } = await supabase.auth.getSession();
   if (sess.session) {
     await applySession(sess.session.user.id, sess.session.user.email ?? "");
@@ -431,6 +417,9 @@ export async function initAuth() {
       }));
     }
   });
+  })();
+
+  return authInitPromise;
 }
 
 // Hook conveniente para garantir init e refetch
