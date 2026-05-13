@@ -794,13 +794,30 @@ export const actions = {
   async deleteLote(loteId: string) {
     const lote = state.lotes.find((l) => l.id === loteId);
     if (!lote) throw new Error("Lote não encontrado");
+
     await logAudit(loteId, lote.codigo, "Exclusão", { material: lote.tipoMaterialId, peso: lote.pesoAtual });
+
+    // Remove storage files for photos (fotos_lote rows are cascade-deleted by DB)
     for (const foto of lote.fotos) {
       const m = foto.url.match(/\/fotos-lote\/(.+)$/);
-      if (m) await supabase.storage.from("fotos-lote").remove([m[1]]);
+      if (m) {
+        await supabase.storage.from("fotos-lote").remove([m[1]]);
+      }
     }
+
+    // Delete child rows that have NO ACTION foreign keys (order matters)
+    const { error: eVendas } = await supabase.from("vendas").delete().eq("lote_id", loteId);
+    if (eVendas) throw eVendas;
+
+    const { error: eBenefs } = await supabase.from("beneficiamentos").delete().eq("lote_id", loteId);
+    if (eBenefs) throw eBenefs;
+
+    const { error: eMovs } = await supabase.from("movimentacoes").delete().eq("lote_id", loteId);
+    if (eMovs) throw eMovs;
+
     const { error } = await supabase.from("lotes").delete().eq("id", loteId);
     if (error) throw error;
+
     await loadAll();
   },
 
