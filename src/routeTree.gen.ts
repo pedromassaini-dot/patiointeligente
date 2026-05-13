@@ -13,6 +13,7 @@ import { Route as VendaRouteImport } from './routes/venda'
 import { Route as TiposRouteImport } from './routes/tipos'
 import { Route as OperadorRouteImport } from './routes/operador'
 import { Route as NovoLoteRouteImport } from './routes/novo-lote'
+import { Route as NovoEstoqueInicialRouteImport } from './routes/novo-estoque-inicial'
 import { Route as MovimentacoesRouteImport } from './routes/movimentacoes'
 import { Route as GestorRouteImport } from './routes/gestor'
 import { Route as FornecedoresRouteImport } from './routes/fornecedores'
@@ -40,6 +41,11 @@ const OperadorRoute = OperadorRouteImport.update({
 const NovoLoteRoute = NovoLoteRouteImport.update({
   id: '/novo-lote',
   path: '/novo-lote',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NovoEstoqueInicialRoute = NovoEstoqueInicialRouteImport.update({
+  id: '/novo-estoque-inicial',
+  path: '/novo-estoque-inicial',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MovimentacoesRoute = MovimentacoesRouteImport.update({
@@ -91,6 +97,7 @@ export interface FileRoutesByFullPath {
   '/fornecedores': typeof FornecedoresRoute
   '/gestor': typeof GestorRoute
   '/movimentacoes': typeof MovimentacoesRoute
+  '/novo-estoque-inicial': typeof NovoEstoqueInicialRoute
   '/novo-lote': typeof NovoLoteRoute
   '/operador': typeof OperadorRoute
   '/tipos': typeof TiposRoute
@@ -105,6 +112,7 @@ export interface FileRoutesByTo {
   '/fornecedores': typeof FornecedoresRoute
   '/gestor': typeof GestorRoute
   '/movimentacoes': typeof MovimentacoesRoute
+  '/novo-estoque-inicial': typeof NovoEstoqueInicialRoute
   '/novo-lote': typeof NovoLoteRoute
   '/operador': typeof OperadorRoute
   '/tipos': typeof TiposRoute
@@ -120,6 +128,7 @@ export interface FileRoutesById {
   '/fornecedores': typeof FornecedoresRoute
   '/gestor': typeof GestorRoute
   '/movimentacoes': typeof MovimentacoesRoute
+  '/novo-estoque-inicial': typeof NovoEstoqueInicialRoute
   '/novo-lote': typeof NovoLoteRoute
   '/operador': typeof OperadorRoute
   '/tipos': typeof TiposRoute
@@ -136,6 +145,7 @@ export interface FileRouteTypes {
     | '/fornecedores'
     | '/gestor'
     | '/movimentacoes'
+    | '/novo-estoque-inicial'
     | '/novo-lote'
     | '/operador'
     | '/tipos'
@@ -150,6 +160,7 @@ export interface FileRouteTypes {
     | '/fornecedores'
     | '/gestor'
     | '/movimentacoes'
+    | '/novo-estoque-inicial'
     | '/novo-lote'
     | '/operador'
     | '/tipos'
@@ -164,6 +175,7 @@ export interface FileRouteTypes {
     | '/fornecedores'
     | '/gestor'
     | '/movimentacoes'
+    | '/novo-estoque-inicial'
     | '/novo-lote'
     | '/operador'
     | '/tipos'
@@ -179,6 +191,7 @@ export interface RootRouteChildren {
   FornecedoresRoute: typeof FornecedoresRoute
   GestorRoute: typeof GestorRoute
   MovimentacoesRoute: typeof MovimentacoesRoute
+  NovoEstoqueInicialRoute: typeof NovoEstoqueInicialRoute
   NovoLoteRoute: typeof NovoLoteRoute
   OperadorRoute: typeof OperadorRoute
   TiposRoute: typeof TiposRoute
@@ -214,6 +227,13 @@ declare module '@tanstack/react-router' {
       path: '/novo-lote'
       fullPath: '/novo-lote'
       preLoaderRoute: typeof NovoLoteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/novo-estoque-inicial': {
+      id: '/novo-estoque-inicial'
+      path: '/novo-estoque-inicial'
+      fullPath: '/novo-estoque-inicial'
+      preLoaderRoute: typeof NovoEstoqueInicialRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/movimentacoes': {
@@ -283,6 +303,7 @@ const rootRouteChildren: RootRouteChildren = {
   FornecedoresRoute: FornecedoresRoute,
   GestorRoute: GestorRoute,
   MovimentacoesRoute: MovimentacoesRoute,
+  NovoEstoqueInicialRoute: NovoEstoqueInicialRoute,
   NovoLoteRoute: NovoLoteRoute,
   OperadorRoute: OperadorRoute,
   TiposRoute: TiposRoute,

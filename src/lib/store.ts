@@ -37,12 +37,13 @@ export type Fornecedor = {
 
 export type Localizacao = { id: string; nome: string };
 
-export type StatusLote = "estoque" | "beneficiamento" | "vendido";
+export type StatusLote = "estoque" | "beneficiamento" | "vendido" | "estoque_inicial";
 type DBStatus = Database["public"]["Enums"]["status_lote"];
 
 function mapStatus(s: DBStatus): StatusLote {
   if (s === "em_beneficiamento") return "beneficiamento";
   if (s === "vendido_total" || s === "vendido_parcial") return "vendido";
+  if (s === "estoque_inicial") return "estoque_inicial";
   return "estoque";
 }
 
@@ -64,7 +65,7 @@ export type Lote = {
   id: string;
   codigo: string;
   tipoMaterialId: string;
-  fornecedorId: string;
+  fornecedorId: string | null;
   pesoEntrada: number;
   pesoAtual: number;
   custoUnitario: number;
@@ -72,6 +73,8 @@ export type Lote = {
   localizacao: string;
   localizacaoId: string | null;
   status: StatusLote;
+  isEstoqueInicial: boolean;
+  dataReferencia?: string;
   fotos: Foto[];
   observacoes?: string;
   dataEntrada: string;
@@ -249,7 +252,7 @@ async function loadAll() {
         id: l.id,
         codigo: l.codigo_lote,
         tipoMaterialId: l.material_id,
-        fornecedorId: l.fornecedor_id,
+        fornecedorId: l.fornecedor_id ?? null,
         pesoEntrada: Number(l.peso_bruto),
         pesoAtual,
         custoUnitario: Number(l.preco_kg_compra),
@@ -257,6 +260,8 @@ async function loadAll() {
         localizacao: locById.get(l.localizacao_id ?? "") ?? "—",
         localizacaoId: l.localizacao_id,
         status: mapStatus(l.status),
+        isEstoqueInicial: l.status === "estoque_inicial",
+        dataReferencia: (l as { data_referencia?: string | null }).data_referencia ?? undefined,
         fotos: lFotos,
         observacoes: l.observacoes ?? undefined,
         dataEntrada: l.data_entrada,
@@ -561,6 +566,52 @@ export const actions = {
     return l;
   },
 
+  async addEstoqueInicial(input: {
+    tipoMaterialId: string;
+    pesoAtual: number;
+    custoEstimado: number;
+    localizacao: string;
+    dataReferencia: string;
+    fotos: File[];
+    observacoes?: string;
+  }): Promise<Lote> {
+    const localizacaoId = await ensureLocalizacao(input.localizacao);
+    const codigo = await nextCodigoLote();
+    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+    const { data, error } = await supabase
+      .from("lotes")
+      .insert({
+        codigo_lote: codigo,
+        material_id: input.tipoMaterialId,
+        fornecedor_id: null,
+        peso_bruto: input.pesoAtual,
+        preco_kg_compra: input.custoEstimado,
+        localizacao_id: localizacaoId,
+        status: "estoque_inicial",
+        observacoes: input.observacoes,
+        criado_por: userId,
+        data_entrada: input.dataReferencia,
+        data_referencia: input.dataReferencia,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any)
+      .select()
+      .single();
+    if (error) throw error;
+
+    if (input.fotos.length) {
+      try {
+        await uploadFotos(data.id, input.fotos);
+      } catch (e) {
+        console.error("upload fotos falhou", e);
+      }
+    }
+
+    await loadAll();
+    const l = state.lotes.find((x) => x.id === data.id);
+    if (!l) throw new Error("Lote criado mas não encontrado");
+    return l;
+  },
+
   async movimentarLote(loteId: string, novaLocalizacao: string) {
     const lote = state.lotes.find((l) => l.id === loteId);
     if (!lote) throw new Error("Lote não encontrado");
@@ -652,6 +703,18 @@ export const actions = {
     }
     const { error } = await supabase.from("lotes").update(update).eq("id", loteId);
     if (error) throw error;
+  },
+
+  async deleteLote(loteId: string) {
+    const lote = state.lotes.find((l) => l.id === loteId);
+    if (!lote) throw new Error("Lote não encontrado");
+    for (const foto of lote.fotos) {
+      const m = foto.url.match(/\/fotos-lote\/(.+)$/);
+      if (m) await supabase.storage.from("fotos-lote").remove([m[1]]);
+    }
+    const { error } = await supabase.from("lotes").delete().eq("id", loteId);
+    if (error) throw error;
+    await loadAll();
   },
 
   async addFornecedor(f: { nome: string; documento: string; cidade: string }) {

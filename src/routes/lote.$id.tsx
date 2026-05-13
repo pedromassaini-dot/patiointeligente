@@ -14,24 +14,7 @@ import {
   perdaPercentual,
   margemEstimada,
 } from "@/lib/store";
-import {
-  ArrowLeft,
-  MapPin,
-  Hammer,
-  ShoppingCart,
-  ImageOff,
-  Camera,
-  Pencil,
-  X,
-  Save,
-  TrendingUp,
-  ArrowRight,
-  Truck,
-  Tag,
-  Scale,
-  Package,
-  CheckCircle2,
-} from "lucide-react";
+import { ArrowLeft, MapPin, Hammer, ShoppingCart, ImageOff, Camera, Pencil, X, Save, TrendingUp, ArrowRight, Truck, Tag, Scale, Package, CircleCheck as CheckCircle2, Trash2, Archive } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -46,14 +29,15 @@ type Tab = "movimentacoes" | "beneficiamentos" | "vendas";
 function LoteDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const { lote, tipo, fornecedor, tipos, fornecedores } = useStore((s) => {
+  const { lote, tipo, fornecedor, tipos, fornecedores, userRole } = useStore((s) => {
     const l = s.lotes.find((x) => x.id === id);
     return {
       lote: l,
       tipo: l ? s.tipos.find((t) => t.id === l.tipoMaterialId) : undefined,
-      fornecedor: l ? s.fornecedores.find((f) => f.id === l.fornecedorId) : undefined,
+      fornecedor: l && l.fornecedorId ? s.fornecedores.find((f) => f.id === l.fornecedorId) : undefined,
       tipos: s.tipos,
       fornecedores: s.fornecedores,
+      userRole: s.user?.role,
     };
   });
 
@@ -117,11 +101,22 @@ function LoteDetailPage() {
 
   const openEdit = () => {
     setEditTipo(lote.tipoMaterialId);
-    setEditForn(lote.fornecedorId);
+    setEditForn(lote.fornecedorId ?? "");
     setEditCusto(String(lote.custoUnitario));
     setEditLoc(lote.localizacao);
     setEditObs(lote.observacoes ?? "");
     setShowEdit(true);
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm(`Excluir o lote ${lote.codigo}? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await actions.deleteLote(lote.id);
+      toast.success(`Lote ${lote.codigo} excluído.`);
+      navigate({ to: "/estoque" });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao excluir lote");
+    }
   };
 
   return (
@@ -140,17 +135,35 @@ function LoteDetailPage() {
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight">{lote.codigo}</h1>
               <StatusBadge status={lote.status} />
+              {lote.isEstoqueInicial && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-sky-100 text-sky-700 border border-sky-300 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-700">
+                  <Archive className="h-3 w-3" /> Estoque Inicial
+                </span>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1"><Tag className="h-3.5 w-3.5" /> {tipo?.nome ?? "—"}</span>
-              <span className="inline-flex items-center gap-1"><Truck className="h-3.5 w-3.5" /> {fornecedor?.nome ?? "—"}</span>
+              <span className="inline-flex items-center gap-1">
+                <Truck className="h-3.5 w-3.5" />
+                {lote.isEstoqueInicial ? <em>Sem fornecedor</em> : (fornecedor?.nome ?? "—")}
+              </span>
               <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {lote.localizacao}</span>
-              <span>Entrada: {fmtDate(lote.dataEntrada)}</span>
+              <span>
+                {lote.isEstoqueInicial ? "Referência: " : "Entrada: "}
+                {fmtDate(lote.dataReferencia ?? lote.dataEntrada)}
+              </span>
             </div>
           </div>
-          <button onClick={openEdit} className={btnSecondary + " h-9 text-xs"}>
-            <Pencil className="h-3.5 w-3.5" /> Editar lote
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={openEdit} className={btnSecondary + " h-9 text-xs"}>
+              <Pencil className="h-3.5 w-3.5" /> Editar lote
+            </button>
+            {userRole === "gestor" && (
+              <button onClick={handleDelete} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-destructive/50 text-destructive text-xs font-medium hover:bg-destructive/10 transition">
+                <Trash2 className="h-3.5 w-3.5" /> Excluir
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Métricas chave */}

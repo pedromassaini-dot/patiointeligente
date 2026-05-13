@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import type { Lote, TipoMaterial, Fornecedor, StatusLote } from "@/lib/store";
 import { fmtKg, fmtBRL, fmtDate } from "@/lib/store";
 import { cn } from "@/lib/utils";
-import { ImageOff } from "lucide-react";
+import { ImageOff, Archive } from "lucide-react";
 
 export function PageHeader({
   title,
@@ -70,14 +70,18 @@ export function StatCard({
 }
 
 export function StatusBadge({ status }: { status: StatusLote }) {
-  const map = {
+  const map: Record<StatusLote, string> = {
     estoque: "bg-success/15 text-success border-success/30",
     beneficiamento: "bg-warning/20 text-warning-foreground border-warning/40",
     vendido: "bg-muted text-muted-foreground border-border",
-  } as const;
-  const label = { estoque: "Em estoque", beneficiamento: "Beneficiamento", vendido: "Vendido" }[
-    status
-  ];
+    estoque_inicial: "bg-sky-500/15 text-sky-700 border-sky-400/40 dark:text-sky-300",
+  };
+  const label: Record<StatusLote, string> = {
+    estoque: "Em estoque",
+    beneficiamento: "Beneficiamento",
+    vendido: "Vendido",
+    estoque_inicial: "Estoque Inicial",
+  };
   return (
     <span
       className={cn(
@@ -85,7 +89,7 @@ export function StatusBadge({ status }: { status: StatusLote }) {
         map[status]
       )}
     >
-      {label}
+      {label[status]}
     </span>
   );
 }
@@ -110,12 +114,21 @@ export function LoteCard({
           <img src={lote.fotos[0].url} alt={lote.codigo} className="w-full h-full object-cover" />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground">
-            <ImageOff className="h-8 w-8" />
+            {lote.isEstoqueInicial ? (
+              <Archive className="h-8 w-8 text-sky-500/60" />
+            ) : (
+              <ImageOff className="h-8 w-8" />
+            )}
           </div>
         )}
         <div className="absolute top-2 right-2">
           <StatusBadge status={lote.status} />
         </div>
+        {lote.isEstoqueInicial && (
+          <div className="absolute bottom-0 left-0 right-0 bg-sky-600/80 text-white text-[10px] font-semibold text-center py-0.5 tracking-wide">
+            ESTOQUE INICIAL
+          </div>
+        )}
       </div>
       <div className="p-3 space-y-1">
         <div className="flex items-center justify-between">
@@ -123,12 +136,21 @@ export function LoteCard({
           <span className="text-xs text-muted-foreground">📍 {lote.localizacao}</span>
         </div>
         <div className="text-xs text-muted-foreground truncate">{tipo?.nome}</div>
-        <div className="text-xs text-muted-foreground truncate">{fornecedor?.nome}</div>
+        <div className="text-xs text-muted-foreground truncate">
+          {lote.isEstoqueInicial ? (
+            <span className="italic">Sem fornecedor (estoque inicial)</span>
+          ) : (
+            fornecedor?.nome
+          )}
+        </div>
         <div className="flex items-center justify-between pt-1">
           <span className="font-semibold text-sm">{fmtKg(lote.pesoAtual)}</span>
           <span className="text-xs text-muted-foreground">{fmtBRL(lote.custoUnitario)}/kg</span>
         </div>
-        <div className="text-[10px] text-muted-foreground">Entrada: {fmtDate(lote.dataEntrada)}</div>
+        <div className="text-[10px] text-muted-foreground">
+          {lote.isEstoqueInicial ? "Ref.: " : "Entrada: "}
+          {fmtDate(lote.dataReferencia ?? lote.dataEntrada)}
+        </div>
       </div>
     </Link>
   );

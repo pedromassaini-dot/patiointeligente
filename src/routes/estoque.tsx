@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { PageHeader, LoteCard, inputCls } from "@/components/ui-bits";
 import { useStore } from "@/lib/store";
 import { useState, useMemo } from "react";
-import { PackagePlus, Search } from "lucide-react";
+import { PackagePlus, Search, Archive } from "lucide-react";
 
 export const Route = createFileRoute("/estoque")({
   component: EstoquePage,
@@ -40,15 +40,29 @@ function EstoquePage() {
     });
   }, [lotes, q, tipo, forn, status, loc, tipos, fornecedores]);
 
+  const iniciais = filtrados.filter((l) => l.isEstoqueInicial);
+  const comprados = filtrados.filter((l) => !l.isEstoqueInicial);
+
   return (
     <AppLayout>
       <PageHeader
         title="Estoque"
         description={`${filtrados.length} de ${lotes.length} lotes`}
         action={
-          <Link to="/novo-lote" className="inline-flex items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
-            <PackagePlus className="h-4 w-4" /> Novo lote
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/novo-estoque-inicial"
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-md border border-sky-400 bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300 dark:border-sky-700 text-sm font-medium hover:bg-sky-100 dark:hover:bg-sky-900/40 transition"
+            >
+              <Archive className="h-4 w-4" /> Estoque Inicial
+            </Link>
+            <Link
+              to="/novo-lote"
+              className="inline-flex items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
+            >
+              <PackagePlus className="h-4 w-4" /> Novo lote
+            </Link>
+          </div>
         }
       />
 
@@ -73,6 +87,7 @@ function EstoquePage() {
         <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">Todos status</option>
           <option value="estoque">Em estoque</option>
+          <option value="estoque_inicial">Estoque Inicial</option>
           <option value="beneficiamento">Beneficiamento</option>
           <option value="vendido">Vendido</option>
         </select>
@@ -87,15 +102,52 @@ function EstoquePage() {
           Nenhum lote encontrado com os filtros atuais.
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-          {filtrados.map((l) => (
-            <LoteCard
-              key={l.id}
-              lote={l}
-              tipo={tipos.find((t) => t.id === l.tipoMaterialId)}
-              fornecedor={fornecedores.find((f) => f.id === l.fornecedorId)}
-            />
-          ))}
+        <div className="space-y-6">
+          {iniciais.length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <Archive className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+                <h2 className="text-sm font-semibold text-sky-700 dark:text-sky-300">
+                  Estoque Inicial ({iniciais.length})
+                </h2>
+                <div className="h-px flex-1 bg-sky-200/60 dark:bg-sky-800/40" />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                {iniciais.map((l) => (
+                  <LoteCard
+                    key={l.id}
+                    lote={l}
+                    tipo={tipos.find((t) => t.id === l.tipoMaterialId)}
+                    fornecedor={undefined}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {comprados.length > 0 && (
+            <section>
+              {iniciais.length > 0 && (
+                <div className="flex items-center gap-2 mb-3">
+                  <PackagePlus className="h-4 w-4 text-muted-foreground" />
+                  <h2 className="text-sm font-semibold text-muted-foreground">
+                    Lotes comprados ({comprados.length})
+                  </h2>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+              )}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                {comprados.map((l) => (
+                  <LoteCard
+                    key={l.id}
+                    lote={l}
+                    tipo={tipos.find((t) => t.id === l.tipoMaterialId)}
+                    fornecedor={fornecedores.find((f) => f.id === l.fornecedorId)}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
     </AppLayout>

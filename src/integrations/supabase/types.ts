@@ -154,7 +154,8 @@ export type Database = {
           criado_por: string | null
           custo_total_compra: number | null
           data_entrada: string
-          fornecedor_id: string
+          data_referencia: string | null
+          fornecedor_id: string | null
           id: string
           localizacao_id: string | null
           material_id: string
@@ -169,7 +170,8 @@ export type Database = {
           criado_por?: string | null
           custo_total_compra?: number | null
           data_entrada?: string
-          fornecedor_id: string
+          data_referencia?: string | null
+          fornecedor_id?: string | null
           id?: string
           localizacao_id?: string | null
           material_id: string
@@ -184,7 +186,8 @@ export type Database = {
           criado_por?: string | null
           custo_total_compra?: number | null
           data_entrada?: string
-          fornecedor_id?: string
+          data_referencia?: string | null
+          fornecedor_id?: string | null
           id?: string
           localizacao_id?: string | null
           material_id?: string
@@ -408,6 +411,7 @@ export type Database = {
         | "pronto"
         | "vendido_parcial"
         | "vendido_total"
+        | "estoque_inicial"
       tipo_movimentacao:
         | "entrada"
         | "transferencia"

@@ -11,7 +11,7 @@ import {
   perdaPercentual,
   margemEstimada,
 } from "@/lib/store";
-import { Boxes, DollarSign, TrendingUp, AlertTriangle, Scale, Percent, Clock } from "lucide-react";
+import { Boxes, DollarSign, TrendingUp, TriangleAlert as AlertTriangle, Scale, Percent, Clock, Archive } from "lucide-react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -37,10 +37,14 @@ function DashboardPage() {
     fornecedores: s.fornecedores,
   }));
 
+  // emEstoque includes estoque_inicial — both count toward stock totals
   const emEstoque = lotes.filter((l) => l.status !== "vendido");
+  const estoqueInicial = emEstoque.filter((l) => l.isEstoqueInicial);
+  const lotesProprios = emEstoque.filter((l) => !l.isEstoqueInicial);
 
   // Peso total em estoque
   const pesoTotal = emEstoque.reduce((a, l) => a + l.pesoAtual, 0);
+  const pesoInicial = estoqueInicial.reduce((a, l) => a + l.pesoAtual, 0);
 
   // Valor total investido (custo de compra de todos os lotes em estoque)
   const valorInvestido = emEstoque.reduce((a, l) => a + custoTotalCompra(l) + (l.custoBeneficiamento || 0), 0);
@@ -116,7 +120,7 @@ function DashboardPage() {
         <StatCard
           label="Peso total em estoque"
           value={fmtKg(pesoTotal)}
-          hint={`${emEstoque.length} lotes`}
+          hint={`${emEstoque.length} lotes${estoqueInicial.length > 0 ? ` · ${estoqueInicial.length} iniciais` : ""}`}
           icon={Boxes}
           tone="primary"
         />
@@ -223,15 +227,39 @@ function DashboardPage() {
 
       <Scale className="hidden" />
 
+      {estoqueInicial.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Archive className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+            <h3 className="text-sm font-semibold text-sky-700 dark:text-sky-300">
+              Estoque Inicial — {fmtKg(pesoInicial)} em {estoqueInicial.length} {estoqueInicial.length === 1 ? "lote" : "lotes"}
+            </h3>
+            <div className="h-px flex-1 bg-sky-200/50 dark:bg-sky-800/30" />
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {estoqueInicial.slice(0, 4).map((l) => (
+              <LoteCard
+                key={l.id}
+                lote={l}
+                tipo={tipos.find((t) => t.id === l.tipoMaterialId)}
+                fornecedor={undefined}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div>
-        <h3 className="text-sm font-semibold mb-3">Lotes recentes</h3>
+        <h3 className="text-sm font-semibold mb-3">
+          {estoqueInicial.length > 0 ? "Lotes comprados recentes" : "Lotes recentes"}
+        </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-          {lotes.slice(0, 8).map((l) => (
+          {lotesProprios.slice(0, 8).map((l) => (
             <LoteCard
               key={l.id}
               lote={l}
               tipo={tipos.find((t) => t.id === l.tipoMaterialId)}
-              fornecedor={undefined}
+              fornecedor={fornecedores.find((f) => f.id === l.fornecedorId)}
             />
           ))}
         </div>
