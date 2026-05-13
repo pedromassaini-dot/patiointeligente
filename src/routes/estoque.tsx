@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader, LoteCard, inputCls } from "@/components/ui-bits";
+import { LoteDrawer } from "@/components/LoteDrawer";
 import { useStore } from "@/lib/store";
 import { useState, useMemo } from "react";
 import { PackagePlus, Search, Archive } from "lucide-react";
@@ -21,6 +22,7 @@ function EstoquePage() {
   const [forn, setForn] = useState("");
   const [status, setStatus] = useState("");
   const [loc, setLoc] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const localizacoes = Array.from(new Set(lotes.map((l) => l.localizacao))).sort();
 
@@ -119,6 +121,7 @@ function EstoquePage() {
                     lote={l}
                     tipo={tipos.find((t) => t.id === l.tipoMaterialId)}
                     fornecedor={undefined}
+                    onClick={() => setSelectedId(l.id)}
                   />
                 ))}
               </div>
@@ -143,6 +146,7 @@ function EstoquePage() {
                     lote={l}
                     tipo={tipos.find((t) => t.id === l.tipoMaterialId)}
                     fornecedor={fornecedores.find((f) => f.id === l.fornecedorId)}
+                    onClick={() => setSelectedId(l.id)}
                   />
                 ))}
               </div>
@@ -150,6 +154,8 @@ function EstoquePage() {
           )}
         </div>
       )}
+
+      <LoteDrawer loteId={selectedId} onClose={() => setSelectedId(null)} />
     </AppLayout>
   );
 }

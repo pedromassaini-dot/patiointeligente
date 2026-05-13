@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppLayout } from "@/components/AppLayout";
 import { PageHeader, StatCard, LoteCard } from "@/components/ui-bits";
+import { LoteDrawer } from "@/components/LoteDrawer";
 import {
   useStore,
   fmtBRL,
@@ -25,6 +26,7 @@ import {
   Cell,
   Legend,
 } from "recharts";
+import { useState } from "react";
 
 export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
@@ -36,6 +38,8 @@ function DashboardPage() {
     tipos: s.tipos,
     fornecedores: s.fornecedores,
   }));
+
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // emEstoque includes estoque_inicial — both count toward stock totals
   const emEstoque = lotes.filter((l) => l.status !== "vendido");
@@ -243,6 +247,7 @@ function DashboardPage() {
                 lote={l}
                 tipo={tipos.find((t) => t.id === l.tipoMaterialId)}
                 fornecedor={undefined}
+                onClick={() => setSelectedId(l.id)}
               />
             ))}
           </div>
@@ -260,10 +265,13 @@ function DashboardPage() {
               lote={l}
               tipo={tipos.find((t) => t.id === l.tipoMaterialId)}
               fornecedor={fornecedores.find((f) => f.id === l.fornecedorId)}
+              onClick={() => setSelectedId(l.id)}
             />
           ))}
         </div>
       </div>
+
+      <LoteDrawer loteId={selectedId} onClose={() => setSelectedId(null)} />
     </AppLayout>
   );
 }

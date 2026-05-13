@@ -98,17 +98,17 @@ export function LoteCard({
   lote,
   tipo,
   fornecedor,
+  onClick,
 }: {
   lote: Lote;
   tipo?: TipoMaterial;
   fornecedor?: Fornecedor;
+  onClick?: () => void;
 }) {
-  return (
-    <Link
-      to="/lote/$id"
-      params={{ id: lote.id }}
-      className="block bg-card rounded-xl border hover:border-primary hover:shadow-md transition-all overflow-hidden"
-    >
+  const cls = "block bg-card rounded-xl border hover:border-primary hover:shadow-md transition-all overflow-hidden";
+
+  const inner = (
+    <>
       <div className="aspect-video bg-muted relative overflow-hidden">
         {lote.fotos[0] ? (
           <img src={lote.fotos[0].url} alt={lote.codigo} className="w-full h-full object-cover" />
@@ -152,6 +152,20 @@ export function LoteCard({
           {fmtDate(lote.dataReferencia ?? lote.dataEntrada)}
         </div>
       </div>
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={cn(cls, "text-left w-full")}>
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <Link to="/lote/$id" params={{ id: lote.id }} className={cls}>
+      {inner}
     </Link>
   );
 }
