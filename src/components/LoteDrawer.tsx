@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   useStore,
   actions,
@@ -36,20 +36,24 @@ export function LoteDrawer({
   loteId: string | null;
   onClose: () => void;
 }) {
-  const { lote, tipo, fornecedor, tipos, fornecedores, userRole, historico } = useStore((s) => {
-    const l = loteId ? s.lotes.find((x) => x.id === loteId) : undefined;
-    return {
-      lote: l,
-      tipo: l ? s.tipos.find((t) => t.id === l.tipoMaterialId) : undefined,
-      fornecedor: l && l.fornecedorId ? s.fornecedores.find((f) => f.id === l.fornecedorId) : undefined,
-      tipos: s.tipos,
-      fornecedores: s.fornecedores,
-      userRole: s.user?.role,
-      historico: l
-        ? s.historico.filter((h) => h.loteId === l.id || h.loteCodigo === l.codigo)
-        : [],
-    };
-  });
+  const { lotes, tipos, fornecedores, userRole, allHistorico } = useStore((s) => ({
+    lotes: s.lotes,
+    tipos: s.tipos,
+    fornecedores: s.fornecedores,
+    userRole: s.user?.role,
+    allHistorico: s.historico,
+  }));
+
+  const lote = useMemo(() => lotes.find((x) => x.id === loteId), [lotes, loteId]);
+  const tipo = useMemo(() => lote ? tipos.find((t) => t.id === lote.tipoMaterialId) : undefined, [lote, tipos]);
+  const fornecedor = useMemo(
+    () => lote && lote.fornecedorId ? fornecedores.find((f) => f.id === lote.fornecedorId) : undefined,
+    [lote, fornecedores]
+  );
+  const historico = useMemo(
+    () => lote ? allHistorico.filter((h) => h.loteId === lote.id || h.loteCodigo === lote.codigo) : [],
+    [lote, allHistorico]
+  );
 
   const isGestor = userRole === "gestor";
   const [tab, setTab] = useState<DrawerTab>("info");

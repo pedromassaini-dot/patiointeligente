@@ -192,7 +192,7 @@ async function loadAll() {
       { data: benefs, error: e6 },
       { data: vendas, error: e7 },
       { data: movs, error: e8 },
-      { data: hist, error: e9 },
+      { data: hist },
     ] = await Promise.all([
       supabase.from("materiais").select("*").eq("ativo", true).order("nome"),
       supabase.from("fornecedores").select("*").order("nome"),
@@ -204,7 +204,7 @@ async function loadAll() {
       supabase.from("movimentacoes").select("*").order("criado_em"),
       supabase.from("historico_lotes").select("*").order("criado_em", { ascending: false }).limit(200),
     ]);
-    const err = e1 || e2 || e3 || e4 || e5 || e6 || e7 || e8 || e9;
+    const err = e1 || e2 || e3 || e4 || e5 || e6 || e7 || e8;
     if (err) throw err;
 
     const locById = new Map((localizacoes ?? []).map((l) => [l.id, l.nome]));
@@ -825,14 +825,22 @@ export const actions = {
 
 // ===== Format helpers =====
 export function fmtBRL(n: number) {
+  if (!Number.isFinite(n)) return "R$ —";
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 export function fmtKg(n: number) {
+  if (!Number.isFinite(n)) return "— kg";
   return `${n.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} kg`;
 }
-export function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("pt-BR");
+export function fmtDate(iso: string | null | undefined) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("pt-BR");
 }
-export function fmtDateTime(iso: string) {
-  return new Date(iso).toLocaleString("pt-BR");
+export function fmtDateTime(iso: string | null | undefined) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleString("pt-BR");
 }
