@@ -13,8 +13,30 @@ import {
   perdaKg as perdaKgFn,
   perdaPercentual,
   margemEstimada,
+  type StatusLote,
 } from "@/lib/store";
-import { ArrowLeft, MapPin, Hammer, ShoppingCart, ImageOff, Camera, Pencil, X, Save, TrendingUp, ArrowRight, Truck, Tag, Scale, Package, CircleCheck as CheckCircle2, Trash2, Archive } from "lucide-react";
+import {
+  ArrowLeft,
+  MapPin,
+  Hammer,
+  ShoppingCart,
+  ImageOff,
+  Camera,
+  Pencil,
+  X,
+  Save,
+  TrendingUp,
+  ArrowRight,
+  Truck,
+  Tag,
+  Scale,
+  Package,
+  CircleCheck as CheckCircle2,
+  Trash2,
+  Archive,
+  History,
+  Eye,
+} from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -24,12 +46,19 @@ export const Route = createFileRoute("/lote/$id")({
 
 const LOCALIZACOES = ["A1", "A2", "A3", "B1", "B2", "B3", "C1", "C2", "C3", "Doca"];
 
-type Tab = "movimentacoes" | "beneficiamentos" | "vendas";
+type Tab = "movimentacoes" | "beneficiamentos" | "vendas" | "historico";
+
+const STATUS_OPTIONS: { value: StatusLote; label: string }[] = [
+  { value: "estoque", label: "Em estoque" },
+  { value: "estoque_inicial", label: "Estoque Inicial" },
+  { value: "beneficiamento", label: "Beneficiamento" },
+  { value: "vendido", label: "Vendido" },
+];
 
 function LoteDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const { lote, tipo, fornecedor, tipos, fornecedores, userRole } = useStore((s) => {
+  const { lote, tipo, fornecedor, tipos, fornecedores, userRole, historico } = useStore((s) => {
     const l = s.lotes.find((x) => x.id === id);
     return {
       lote: l,
@@ -38,14 +67,18 @@ function LoteDetailPage() {
       tipos: s.tipos,
       fornecedores: s.fornecedores,
       userRole: s.user?.role,
+      historico: s.historico.filter((h) => h.loteId === id || (l && h.loteCodigo === l.codigo)),
     };
   });
+
+  const isGestor = userRole === "gestor";
 
   const [tab, setTab] = useState<Tab>("movimentacoes");
   const [showMover, setShowMover] = useState(false);
   const [showBenef, setShowBenef] = useState(false);
   const [showVenda, setShowVenda] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [novaLoc, setNovaLoc] = useState("");
   const [pesoBenef, setPesoBenef] = useState("");
@@ -56,6 +89,8 @@ function LoteDetailPage() {
   const [editTipo, setEditTipo] = useState("");
   const [editForn, setEditForn] = useState("");
   const [editCusto, setEditCusto] = useState("");
+  const [editPeso, setEditPeso] = useState("");
+  const [editStatus, setEditStatus] = useState<StatusLote>("estoque");
   const [editLoc, setEditLoc] = useState("");
   const [editObs, setEditObs] = useState("");
 
@@ -103,9 +138,36 @@ function LoteDetailPage() {
     setEditTipo(lote.tipoMaterialId);
     setEditForn(lote.fornecedorId ?? "");
     setEditCusto(String(lote.custoUnitario));
+    setEditPeso(String(lote.pesoEntrada));
+    setEditStatus(lote.status);
     setEditLoc(lote.localizacao);
     setEditObs(lote.observacoes ?? "");
     setShowEdit(true);
+  };
+
+  const handleSaveEdit = async () => {
+    const custo = parseFloat(editCusto);
+    const peso = parseFloat(editPeso);
+    if (!custo || custo <= 0) { toast.error("Custo inválido."); return; }
+    if (!peso || peso <= 0) { toast.error("Peso inválido."); return; }
+    setSaving(true);
+    try {
+      await actions.editLote(lote.id, {
+        tipoMaterialId: editTipo,
+        fornecedorId: editForn || null,
+        custoUnitario: custo,
+        peso,
+        status: editStatus,
+        localizacao: editLoc,
+        observacoes: editObs,
+      });
+      toast.success("Lote atualizado com sucesso.");
+      setShowEdit(false);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -127,6 +189,13 @@ function LoteDetailPage() {
       >
         <ArrowLeft className="h-4 w-4" /> Estoque
       </button>
+
+      {!isGestor && (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-muted bg-muted/40 px-4 py-2.5 text-sm text-muted-foreground">
+          <Eye className="h-4 w-4 shrink-0" />
+          Você está em modo de visualização. Apenas gestores podem editar ou excluir lotes.
+        </div>
+      )}
 
       {/* Cabeçalho com código em destaque */}
       <div className="bg-gradient-to-br from-primary/15 via-card to-card border rounded-2xl p-5 md:p-6 mb-5">
@@ -154,16 +223,19 @@ function LoteDetailPage() {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={openEdit} className={btnSecondary + " h-9 text-xs"}>
-              <Pencil className="h-3.5 w-3.5" /> Editar lote
-            </button>
-            {userRole === "gestor" && (
-              <button onClick={handleDelete} className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-destructive/50 text-destructive text-xs font-medium hover:bg-destructive/10 transition">
+          {isGestor && (
+            <div className="flex items-center gap-2">
+              <button onClick={openEdit} className={btnSecondary + " h-9 text-xs"}>
+                <Pencil className="h-3.5 w-3.5" /> Editar lote
+              </button>
+              <button
+                onClick={handleDelete}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md border border-destructive/50 text-destructive text-xs font-medium hover:bg-destructive/10 transition"
+              >
                 <Trash2 className="h-3.5 w-3.5" /> Excluir
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Métricas chave */}
@@ -329,7 +401,7 @@ function LoteDetailPage() {
         </ActionPanel>
       )}
 
-      {showEdit && (
+      {isGestor && showEdit && (
         <ActionPanel title="Editar lote" onClose={() => setShowEdit(false)}>
           <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Tipo de material">
@@ -339,17 +411,40 @@ function LoteDetailPage() {
             </Field>
             <Field label="Fornecedor">
               <select className={inputCls} value={editForn} onChange={(e) => setEditForn(e.target.value)}>
+                <option value="">Sem fornecedor</option>
                 {fornecedores.map((f) => <option key={f.id} value={f.id}>{f.nome}</option>)}
               </select>
+            </Field>
+            <Field label="Peso de entrada (kg)">
+              <input
+                className={inputCls}
+                type="number"
+                step="0.1"
+                min="0.1"
+                value={editPeso}
+                onChange={(e) => setEditPeso(e.target.value)}
+              />
             </Field>
             <Field label="Custo unitário (R$/kg)">
               <input
                 className={inputCls}
                 type="number"
                 step="0.01"
+                min="0"
                 value={editCusto}
                 onChange={(e) => setEditCusto(e.target.value)}
               />
+            </Field>
+            <Field label="Status">
+              <select
+                className={inputCls}
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as StatusLote)}
+              >
+                {STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
             </Field>
             <Field label="Localização">
               <select className={inputCls} value={editLoc} onChange={(e) => setEditLoc(e.target.value)}>
@@ -364,21 +459,18 @@ function LoteDetailPage() {
               onChange={(e) => setEditObs(e.target.value)}
             />
           </Field>
+          {parseFloat(editPeso) > 0 && parseFloat(editCusto) > 0 && (
+            <div className="rounded-md p-3 bg-primary/10 border border-primary/30 text-sm flex justify-between">
+              <span className="text-muted-foreground">Valor total estimado</span>
+              <span className="font-semibold">{fmtBRL(parseFloat(editPeso) * parseFloat(editCusto))}</span>
+            </div>
+          )}
           <button
             className={btnPrimary + " w-full sm:w-auto"}
-            onClick={() => {
-              actions.editLote(lote.id, {
-                tipoMaterialId: editTipo,
-                fornecedorId: editForn,
-                custoUnitario: parseFloat(editCusto) || lote.custoUnitario,
-                localizacao: editLoc,
-                observacoes: editObs,
-              });
-              toast.success("Lote atualizado");
-              setShowEdit(false);
-            }}
+            disabled={saving}
+            onClick={handleSaveEdit}
           >
-            <Save className="h-4 w-4" /> Salvar alterações
+            <Save className="h-4 w-4" /> {saving ? "Salvando..." : "Salvar alterações"}
           </button>
         </ActionPanel>
       )}
@@ -431,11 +523,17 @@ function LoteDetailPage() {
               <TabBtn active={tab === "vendas"} onClick={() => setTab("vendas")}>
                 Vendas ({vendas.length})
               </TabBtn>
+              <TabBtn active={tab === "historico"} onClick={() => setTab("historico")}>
+                <span className="inline-flex items-center gap-1">
+                  <History className="h-3 w-3" /> Auditoria ({historico.length})
+                </span>
+              </TabBtn>
             </div>
             <div>
               {tab === "movimentacoes" && <Timeline items={movs} empty="Nenhuma movimentação." />}
               {tab === "beneficiamentos" && <Timeline items={benefs} empty="Nenhum beneficiamento registrado." />}
               {tab === "vendas" && <Timeline items={vendas} empty="Nenhuma venda registrada." />}
+              {tab === "historico" && <HistoricoList items={historico} />}
             </div>
           </div>
 
@@ -634,6 +732,50 @@ function Timeline({
             <div className="text-xs text-muted-foreground">
               {fmtDateTime(m.data)} · {m.operador}
             </div>
+          </div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function HistoricoList({
+  items,
+}: {
+  items: { id: string; acao: string; usuarioNome: string; criadoEm: string; detalhes?: Record<string, unknown> }[];
+}) {
+  if (items.length === 0) {
+    return (
+      <div className="text-xs text-muted-foreground text-center py-6">
+        Nenhum registro de auditoria para este lote.
+      </div>
+    );
+  }
+  const acaoCor = (acao: string) => {
+    if (acao.startsWith("Exclus")) return "bg-destructive";
+    if (acao.startsWith("Edi")) return "bg-warning";
+    return "bg-primary";
+  };
+  return (
+    <ol className="space-y-3">
+      {items.map((h) => (
+        <li key={h.id} className="flex gap-3 text-sm">
+          <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${acaoCor(h.acao)}`} />
+          <div className="flex-1">
+            <div className="font-medium">{h.acao}</div>
+            <div className="text-xs text-muted-foreground">
+              {fmtDateTime(h.criadoEm)} · {h.usuarioNome}
+            </div>
+            {h.detalhes && Object.keys(h.detalhes).length > 0 && (
+              <details className="mt-1">
+                <summary className="text-[11px] text-muted-foreground cursor-pointer hover:text-foreground">
+                  Ver detalhes
+                </summary>
+                <pre className="text-[10px] bg-muted rounded p-2 mt-1 overflow-x-auto whitespace-pre-wrap">
+                  {JSON.stringify(h.detalhes, null, 2)}
+                </pre>
+              </details>
+            )}
           </div>
         </li>
       ))}

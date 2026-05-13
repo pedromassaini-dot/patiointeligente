@@ -49,6 +49,16 @@ function mapStatus(s: DBStatus): StatusLote {
 
 export type Foto = { id: string; url: string };
 
+export type HistoricoLote = {
+  id: string;
+  loteId: string | null;
+  loteCodigo: string;
+  usuarioNome: string;
+  acao: string;
+  detalhes?: Record<string, unknown>;
+  criadoEm: string;
+};
+
 export type Movimentacao = {
   id: string;
   data: string;
@@ -93,6 +103,7 @@ type State = {
   fornecedores: Fornecedor[];
   localizacoes: Localizacao[];
   lotes: Lote[];
+  historico: HistoricoLote[];
 };
 
 let state: State = {
@@ -105,6 +116,7 @@ let state: State = {
   fornecedores: [],
   localizacoes: [],
   lotes: [],
+  historico: [],
 };
 
 const listeners = new Set<() => void>();
@@ -180,6 +192,7 @@ async function loadAll() {
       { data: benefs, error: e6 },
       { data: vendas, error: e7 },
       { data: movs, error: e8 },
+      { data: hist, error: e9 },
     ] = await Promise.all([
       supabase.from("materiais").select("*").eq("ativo", true).order("nome"),
       supabase.from("fornecedores").select("*").order("nome"),
@@ -189,8 +202,9 @@ async function loadAll() {
       supabase.from("beneficiamentos").select("*").order("criado_em"),
       supabase.from("vendas").select("*").order("data_venda"),
       supabase.from("movimentacoes").select("*").order("criado_em"),
+      supabase.from("historico_lotes").select("*").order("criado_em", { ascending: false }).limit(200),
     ]);
-    const err = e1 || e2 || e3 || e4 || e5 || e6 || e7 || e8;
+    const err = e1 || e2 || e3 || e4 || e5 || e6 || e7 || e8 || e9;
     if (err) throw err;
 
     const locById = new Map((localizacoes ?? []).map((l) => [l.id, l.nome]));
@@ -287,6 +301,15 @@ async function loadAll() {
       })),
       localizacoes: (localizacoes ?? []).map((l) => ({ id: l.id, nome: l.nome })),
       lotes: lotesAssembled,
+      historico: (hist ?? []).map((h) => ({
+        id: h.id,
+        loteId: h.lote_id,
+        loteCodigo: h.lote_codigo,
+        usuarioNome: h.usuario_nome,
+        acao: h.acao,
+        detalhes: h.detalhes as Record<string, unknown> | undefined,
+        criadoEm: h.criado_em,
+      })),
     }));
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Erro ao carregar dados";
@@ -482,6 +505,18 @@ async function nextCodigoLote(): Promise<string> {
   return `LT-${String(1000 + n)}`;
 }
 
+async function logAudit(loteId: string, loteCodigo: string, acao: string, detalhes?: Record<string, unknown>) {
+  const user = state.user;
+  await supabase.from("historico_lotes").insert({
+    lote_id: loteId,
+    lote_codigo: loteCodigo,
+    usuario_id: user?.id ?? null,
+    usuario_nome: user?.nome ?? "Sistema",
+    acao,
+    detalhes: detalhes ?? null,
+  });
+}
+
 // ===== Actions =====
 export const actions = {
   async loginEmail(email: string, password: string) {
@@ -563,6 +598,7 @@ export const actions = {
     await loadAll();
     const l = state.lotes.find((x) => x.id === data.id);
     if (!l) throw new Error("Lote criado mas não encontrado");
+    await logAudit(data.id, data.codigo_lote, "Cadastro de lote");
     return l;
   },
 
@@ -609,6 +645,7 @@ export const actions = {
     await loadAll();
     const l = state.lotes.find((x) => x.id === data.id);
     if (!l) throw new Error("Lote criado mas não encontrado");
+    await logAudit(data.id, data.codigo_lote, "Cadastro de estoque inicial");
     return l;
   },
 
@@ -687,27 +724,77 @@ export const actions = {
     loteId: string,
     patch: Partial<{
       tipoMaterialId: string;
-      fornecedorId: string;
+      fornecedorId: string | null;
       custoUnitario: number;
+      peso: number;
+      status: StatusLote;
       localizacao: string;
       observacoes: string;
     }>
   ) {
+    const lote = state.lotes.find((l) => l.id === loteId);
+    if (!lote) throw new Error("Lote não encontrado");
+
     const update: Database["public"]["Tables"]["lotes"]["Update"] = {};
-    if (patch.tipoMaterialId) update.material_id = patch.tipoMaterialId;
-    if (patch.fornecedorId) update.fornecedor_id = patch.fornecedorId;
-    if (patch.custoUnitario !== undefined) update.preco_kg_compra = patch.custoUnitario;
-    if (patch.observacoes !== undefined) update.observacoes = patch.observacoes;
-    if (patch.localizacao) {
+    const before: Record<string, unknown> = {};
+    const after: Record<string, unknown> = {};
+
+    if (patch.tipoMaterialId && patch.tipoMaterialId !== lote.tipoMaterialId) {
+      before.material_id = lote.tipoMaterialId;
+      after.material_id = patch.tipoMaterialId;
+      update.material_id = patch.tipoMaterialId;
+    }
+    if (patch.fornecedorId !== undefined && patch.fornecedorId !== lote.fornecedorId) {
+      before.fornecedor_id = lote.fornecedorId;
+      after.fornecedor_id = patch.fornecedorId;
+      update.fornecedor_id = patch.fornecedorId;
+    }
+    if (patch.custoUnitario !== undefined && patch.custoUnitario !== lote.custoUnitario) {
+      before.preco_kg_compra = lote.custoUnitario;
+      after.preco_kg_compra = patch.custoUnitario;
+      update.preco_kg_compra = patch.custoUnitario;
+    }
+    if (patch.peso !== undefined && patch.peso !== lote.pesoEntrada) {
+      before.peso_bruto = lote.pesoEntrada;
+      after.peso_bruto = patch.peso;
+      update.peso_bruto = patch.peso;
+    }
+    if (patch.status !== undefined) {
+      const dbStatus = ((): DBStatus => {
+        if (patch.status === "beneficiamento") return "em_beneficiamento";
+        if (patch.status === "vendido") return "vendido_total";
+        if (patch.status === "estoque_inicial") return "estoque_inicial";
+        return "recebido";
+      })();
+      if (dbStatus !== lote.status) {
+        before.status = lote.status;
+        after.status = patch.status;
+        update.status = dbStatus;
+      }
+    }
+    if (patch.observacoes !== undefined && patch.observacoes !== lote.observacoes) {
+      before.observacoes = lote.observacoes;
+      after.observacoes = patch.observacoes;
+      update.observacoes = patch.observacoes;
+    }
+    if (patch.localizacao && patch.localizacao !== lote.localizacao) {
+      before.localizacao = lote.localizacao;
+      after.localizacao = patch.localizacao;
       update.localizacao_id = await ensureLocalizacao(patch.localizacao);
     }
-    const { error } = await supabase.from("lotes").update(update).eq("id", loteId);
-    if (error) throw error;
+
+    if (Object.keys(update).length > 0) {
+      const { error } = await supabase.from("lotes").update(update).eq("id", loteId);
+      if (error) throw error;
+      await logAudit(loteId, lote.codigo, "Edição", { antes: before, depois: after });
+      await loadAll();
+    }
   },
 
   async deleteLote(loteId: string) {
     const lote = state.lotes.find((l) => l.id === loteId);
     if (!lote) throw new Error("Lote não encontrado");
+    await logAudit(loteId, lote.codigo, "Exclusão", { material: lote.tipoMaterialId, peso: lote.pesoAtual });
     for (const foto of lote.fotos) {
       const m = foto.url.match(/\/fotos-lote\/(.+)$/);
       if (m) await supabase.storage.from("fotos-lote").remove([m[1]]);

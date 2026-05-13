@@ -61,6 +61,39 @@ export type Database = {
           },
         ]
       }
+      historico_lotes: {
+        Row: {
+          id: string
+          lote_id: string | null
+          lote_codigo: string
+          usuario_id: string | null
+          usuario_nome: string
+          acao: string
+          detalhes: Json | null
+          criado_em: string
+        }
+        Insert: {
+          id?: string
+          lote_id?: string | null
+          lote_codigo?: string
+          usuario_id?: string | null
+          usuario_nome?: string
+          acao: string
+          detalhes?: Json | null
+          criado_em?: string
+        }
+        Update: {
+          id?: string
+          lote_id?: string | null
+          lote_codigo?: string
+          usuario_id?: string | null
+          usuario_nome?: string
+          acao?: string
+          detalhes?: Json | null
+          criado_em?: string
+        }
+        Relationships: []
+      }
       fornecedores: {
         Row: {
           cidade: string | null
