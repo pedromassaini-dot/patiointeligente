@@ -11,8 +11,9 @@ import {
   perdaKg as perdaKgFn,
   perdaPercentual,
   margemEstimada,
+  type Lote,
 } from "@/lib/store";
-import { Boxes, DollarSign, TrendingUp, TriangleAlert as AlertTriangle, Scale, Percent, Clock, Archive } from "lucide-react";
+import { Boxes, DollarSign, TrendingUp, TriangleAlert as AlertTriangle, Scale, Percent, Clock, Archive, GitFork, PackageSearch } from "lucide-react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -95,6 +96,36 @@ function DashboardPage() {
     })
     .filter((x): x is { nome: string; perda: number } => !!x);
 
+  // Traceability indicators
+  const sublotes = lotes.filter((l) => l.loteTipo === "sublote");
+  const expedicoes = lotes.filter((l) => l.loteTipo === "expedicao" && l.status !== "vendido");
+  const consumidos = lotes.filter((l) => l.consumido);
+
+  // Margem por fornecedor (vendidos)
+  const margemPorFornecedor = fornecedores
+    .map((f) => {
+      const ls = vendidos.filter((l) => l.fornecedorId === f.id);
+      if (ls.length === 0) return null;
+      const receita = ls.reduce((a, l) => a + l.pesoAtual * (l.precoVenda ?? 0), 0);
+      const custo = ls.reduce((a, l) => a + custoFinalKg(l) * l.pesoAtual, 0);
+      const margem = receita - custo;
+      const pct = receita > 0 ? (margem / receita) * 100 : 0;
+      return { nome: f.nome, margem: +margem.toFixed(2), pct: +pct.toFixed(1) };
+    })
+    .filter((x): x is { nome: string; margem: number; pct: number } => !!x)
+    .sort((a, b) => b.pct - a.pct);
+
+  // Rendimento (peso saída / peso entrada) por lote pai que gerou sublotes
+  const rendimentoSplits = lotes
+    .filter((l) => l.loteTipo === "normal" && l.consumido)
+    .map((l) => {
+      const filhos = lotes.filter((x) => x.sublotePaiId === l.id);
+      const pesoOut = filhos.reduce((a, x) => a + x.pesoEntrada, 0);
+      const rend = l.pesoEntrada > 0 ? (pesoOut / l.pesoEntrada) * 100 : 0;
+      return { nome: l.codigo, rendimento: +rend.toFixed(1) };
+    })
+    .filter((x) => x.rendimento > 0);
+
   // Estoque por tipo
   const porTipo = tipos.map((t) => {
     const lotesT = emEstoque.filter((l) => l.tipoMaterialId === t.id);
@@ -160,6 +191,19 @@ function DashboardPage() {
           label="Lotes parados (>14d)"
           value={String(emEstoque.filter((l) => agora - new Date(l.dataEntrada).getTime() > 14 * 86400000).length)}
           icon={AlertTriangle}
+        />
+        <StatCard
+          label="Sublotes gerados"
+          value={String(sublotes.length)}
+          hint={`${consumidos.length} lotes consumidos`}
+          icon={GitFork}
+          tone="primary"
+        />
+        <StatCard
+          label="Lotes de expedição"
+          value={String(expedicoes.length)}
+          hint={expedicoes.length > 0 ? `${fmtKg(expedicoes.reduce((a, l) => a + l.pesoAtual, 0))} disponível` : "Nenhum em estoque"}
+          icon={PackageSearch}
         />
       </div>
 
@@ -228,6 +272,46 @@ function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Traceability charts */}
+      {(margemPorFornecedor.length > 0 || rendimentoSplits.length > 0) && (
+        <div className="grid lg:grid-cols-2 gap-4 mb-6">
+          {margemPorFornecedor.length > 0 && (
+            <div className="bg-card rounded-xl border p-4">
+              <h3 className="text-sm font-semibold mb-1">Margem por fornecedor</h3>
+              <p className="text-xs text-muted-foreground mb-3">% margem sobre receita (lotes vendidos)</p>
+              <div className="h-48">
+                <ResponsiveContainer>
+                  <BarChart data={margemPorFornecedor} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis type="number" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" unit="%" />
+                    <YAxis type="category" dataKey="nome" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" width={110} />
+                    <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8 }} />
+                    <Bar dataKey="pct" fill="var(--chart-4)" radius={[0, 6, 6, 0]} name="Margem %" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+          {rendimentoSplits.length > 0 && (
+            <div className="bg-card rounded-xl border p-4">
+              <h3 className="text-sm font-semibold mb-1">Rendimento por split</h3>
+              <p className="text-xs text-muted-foreground mb-3">% peso recuperado após divisão em sublotes</p>
+              <div className="h-48">
+                <ResponsiveContainer>
+                  <BarChart data={rendimentoSplits}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                    <XAxis dataKey="nome" tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" />
+                    <YAxis tick={{ fontSize: 11 }} stroke="var(--muted-foreground)" unit="%" domain={[0, 100]} />
+                    <Tooltip contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 8 }} />
+                    <Bar dataKey="rendimento" fill="var(--chart-5)" radius={[6, 6, 0, 0]} name="Rendimento %" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <Scale className="hidden" />
 

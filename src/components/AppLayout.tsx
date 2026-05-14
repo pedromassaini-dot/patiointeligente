@@ -14,6 +14,7 @@ import {
   X,
   Briefcase,
   RefreshCw,
+  PackageSearch,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { actions, useStore, type Role } from "@/lib/store";
@@ -27,6 +28,7 @@ const NAV: NavItem[] = [
   { to: "/novo-lote", label: "Novo Lote", icon: PackagePlus, roles: ["operador", "gestor"] },
   { to: "/estoque", label: "Estoque", icon: Boxes, roles: ["gestor", "operador"] },
   { to: "/beneficiamento", label: "Beneficiamento", icon: Hammer, roles: ["operador", "gestor"] },
+  { to: "/expedicao", label: "Lote de Expedição", icon: PackageSearch, roles: ["operador", "gestor"] },
   { to: "/movimentacoes", label: "Movimentações", icon: ArrowRightLeft, roles: ["operador", "gestor"] },
   { to: "/venda", label: "Venda / Saída", icon: ShoppingCart, roles: ["operador", "gestor"] },
   { to: "/fornecedores", label: "Fornecedores", icon: Truck, roles: ["gestor"] },

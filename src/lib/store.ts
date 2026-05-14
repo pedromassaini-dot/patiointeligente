@@ -71,6 +71,18 @@ export type Movimentacao = {
   operador: string;
 };
 
+export type LoteTipo = "normal" | "sublote" | "expedicao";
+
+export type ComposicaoItem = {
+  id: string;
+  origemLoteId: string | null;
+  origemLoteCodigo: string;
+  pesoUsado: number;
+  custoProporcional: number;
+  fornecedorId: string | null;
+  materialId: string | null;
+};
+
 export type Lote = {
   id: string;
   codigo: string;
@@ -78,11 +90,15 @@ export type Lote = {
   fornecedorId: string | null;
   pesoEntrada: number;
   pesoAtual: number;
+  pesoDisponivel: number;
+  consumido: boolean;
   custoUnitario: number;
   custoBeneficiamento: number;
   localizacao: string;
   localizacaoId: string | null;
   status: StatusLote;
+  loteTipo: LoteTipo;
+  sublotePaiId: string | null;
   isEstoqueInicial: boolean;
   dataReferencia?: string;
   fotos: Foto[];
@@ -91,6 +107,7 @@ export type Lote = {
   dataSaida?: string;
   precoVenda?: number;
   movimentacoes: Movimentacao[];
+  composicao: ComposicaoItem[];
 };
 
 type State = {
@@ -193,6 +210,7 @@ async function loadAll() {
       { data: vendas, error: e7 },
       { data: movs, error: e8 },
       { data: hist },
+      { data: composicoes },
     ] = await Promise.all([
       supabase.from("materiais").select("*").eq("ativo", true).order("nome"),
       supabase.from("fornecedores").select("*").order("nome"),
@@ -203,6 +221,7 @@ async function loadAll() {
       supabase.from("vendas").select("*").order("data_venda"),
       supabase.from("movimentacoes").select("*").order("criado_em"),
       supabase.from("historico_lotes").select("*").order("criado_em", { ascending: false }).limit(200),
+      supabase.from("composicao_lotes").select("*"),
     ]);
     const err = e1 || e2 || e3 || e4 || e5 || e6 || e7 || e8;
     if (err) throw err;
@@ -262,6 +281,20 @@ async function loadAll() {
         })),
       ].sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
 
+      const lComposicao: ComposicaoItem[] = (composicoes ?? [])
+        .filter((c) => c.expedicao_lote_id === l.id)
+        .map((c) => ({
+          id: c.id,
+          origemLoteId: c.origem_lote_id,
+          origemLoteCodigo: c.origem_lote_codigo,
+          pesoUsado: Number(c.peso_usado),
+          custoProporcional: Number(c.custo_proporcional),
+          fornecedorId: c.fornecedor_id,
+          materialId: c.material_id,
+        }));
+
+      const pesoDisp = l.peso_disponivel != null ? Number(l.peso_disponivel) : pesoAtual;
+
       return {
         id: l.id,
         codigo: l.codigo_lote,
@@ -269,11 +302,15 @@ async function loadAll() {
         fornecedorId: l.fornecedor_id ?? null,
         pesoEntrada: Number(l.peso_bruto),
         pesoAtual,
+        pesoDisponivel: pesoDisp,
+        consumido: l.consumido ?? false,
         custoUnitario: Number(l.preco_kg_compra),
         custoBeneficiamento: custoBenef,
         localizacao: locById.get(l.localizacao_id ?? "") ?? "—",
         localizacaoId: l.localizacao_id,
         status: mapStatus(l.status),
+        loteTipo: (l.lote_tipo ?? "normal") as LoteTipo,
+        sublotePaiId: l.sublote_pai_id ?? null,
         isEstoqueInicial: l.status === "estoque_inicial",
         dataReferencia: (l as { data_referencia?: string | null }).data_referencia ?? undefined,
         fotos: lFotos,
@@ -282,6 +319,7 @@ async function loadAll() {
         dataSaida: ultVenda?.data_venda,
         precoVenda: ultVenda ? Number(ultVenda.preco_kg_venda) : undefined,
         movimentacoes,
+        composicao: lComposicao,
       };
     });
 
@@ -819,6 +857,161 @@ export const actions = {
     if (error) throw error;
 
     await loadAll();
+  },
+
+  // Split a lot into sublots after beneficiamento.
+  // sublotes: array of { tipoMaterialId, peso, custoEstimado, localizacao, observacoes? }
+  // custoBenef: processing cost shared across all sublots
+  async splitLote(
+    loteId: string,
+    custoBenef: number,
+    sublotes: { tipoMaterialId: string; peso: number; custoEstimado: number; localizacao: string; observacoes?: string }[]
+  ): Promise<void> {
+    const lote = state.lotes.find((l) => l.id === loteId);
+    if (!lote) throw new Error("Lote não encontrado");
+
+    const pesoTotal = sublotes.reduce((a, s) => a + s.peso, 0);
+    if (pesoTotal > lote.pesoDisponivel + 0.001) {
+      throw new Error(`Peso total dos sublotes (${pesoTotal.toFixed(1)} kg) excede o disponível (${lote.pesoDisponivel.toFixed(1)} kg)`);
+    }
+
+    const custoFinalPai = custoFinalKg(lote);
+    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+
+    // Register beneficiamento record on parent
+    const { error: eBenef } = await supabase.from("beneficiamentos").insert({
+      lote_id: loteId,
+      peso_antes: lote.pesoAtual,
+      peso_depois: 0,
+      custo_beneficiamento: custoBenef,
+      observacoes: `Split em ${sublotes.length} sublotes`,
+    });
+    if (eBenef) throw eBenef;
+
+    // Create each sublote
+    for (let i = 0; i < sublotes.length; i++) {
+      const s = sublotes[i];
+      const locId = await ensureLocalizacao(s.localizacao);
+      const sufixo = String.fromCharCode(65 + i); // A, B, C...
+      const codigo = `${lote.codigo}-${sufixo}`;
+      const custoProporcional = custoFinalPai * s.peso + (custoBenef / pesoTotal) * s.peso;
+
+      const { error: eIns } = await supabase.from("lotes").insert({
+        codigo_lote: codigo,
+        material_id: s.tipoMaterialId,
+        fornecedor_id: lote.fornecedorId,
+        peso_bruto: s.peso,
+        preco_kg_compra: custoProporcional / s.peso,
+        localizacao_id: locId,
+        status: "recebido",
+        observacoes: s.observacoes ?? null,
+        criado_por: userId,
+        sublote_pai_id: loteId,
+        lote_tipo: "sublote",
+        peso_disponivel: s.peso,
+        consumido: false,
+      });
+      if (eIns) throw eIns;
+    }
+
+    // Mark parent as consumed / update its peso_disponivel to 0
+    const { error: eUpd } = await supabase
+      .from("lotes")
+      .update({ peso_disponivel: 0, consumido: true, status: "em_beneficiamento" })
+      .eq("id", loteId);
+    if (eUpd) throw eUpd;
+
+    await logAudit(loteId, lote.codigo, "Split em sublotes", {
+      sublotes: sublotes.length,
+      pesoTotal,
+      custoBenef,
+    });
+    await loadAll();
+  },
+
+  // Compose an expedition lot from multiple source lots.
+  // itens: array of { loteId, pesoUsado }
+  async formarExpedicao(
+    localizacao: string,
+    observacoes: string | undefined,
+    itens: { loteId: string; pesoUsado: number }[]
+  ): Promise<string> {
+    // Validate availability
+    for (const item of itens) {
+      const l = state.lotes.find((x) => x.id === item.loteId);
+      if (!l) throw new Error(`Lote ${item.loteId} não encontrado`);
+      if (item.pesoUsado <= 0) throw new Error(`Peso inválido para lote ${l.codigo}`);
+      if (item.pesoUsado > l.pesoDisponivel + 0.001) {
+        throw new Error(`Peso solicitado (${item.pesoUsado.toFixed(1)} kg) excede disponível (${l.pesoDisponivel.toFixed(1)} kg) no lote ${l.codigo}`);
+      }
+    }
+
+    const pesoTotal = itens.reduce((a, i) => a + i.pesoUsado, 0);
+    const custoTotal = itens.reduce((a, item) => {
+      const l = state.lotes.find((x) => x.id === item.loteId)!;
+      return a + custoFinalKg(l) * item.pesoUsado;
+    }, 0);
+    const custoPorKg = pesoTotal > 0 ? custoTotal / pesoTotal : 0;
+
+    const locId = await ensureLocalizacao(localizacao);
+    const codigo = await nextCodigoLote();
+    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+
+    // Create the expedition lot
+    const { data: expLote, error: eExp } = await supabase
+      .from("lotes")
+      .insert({
+        codigo_lote: codigo,
+        material_id: state.lotes.find((l) => l.id === itens[0].loteId)!.tipoMaterialId,
+        fornecedor_id: null,
+        peso_bruto: pesoTotal,
+        preco_kg_compra: custoPorKg,
+        localizacao_id: locId,
+        status: "recebido",
+        observacoes: observacoes ?? null,
+        criado_por: userId,
+        lote_tipo: "expedicao",
+        peso_disponivel: pesoTotal,
+        consumido: false,
+      })
+      .select()
+      .single();
+    if (eExp) throw eExp;
+
+    // Insert composicao_lotes rows and reduce source lots
+    for (const item of itens) {
+      const l = state.lotes.find((x) => x.id === item.loteId)!;
+      const custoProp = custoFinalKg(l) * item.pesoUsado;
+
+      const { error: eComp } = await supabase.from("composicao_lotes").insert({
+        expedicao_lote_id: expLote.id,
+        origem_lote_id: item.loteId,
+        origem_lote_codigo: l.codigo,
+        peso_usado: item.pesoUsado,
+        custo_proporcional: custoProp,
+        fornecedor_id: l.fornecedorId,
+        material_id: l.tipoMaterialId,
+      });
+      if (eComp) throw eComp;
+
+      const novoDisp = l.pesoDisponivel - item.pesoUsado;
+      const { error: eUpd } = await supabase
+        .from("lotes")
+        .update({
+          peso_disponivel: novoDisp,
+          consumido: novoDisp <= 0.001,
+        })
+        .eq("id", item.loteId);
+      if (eUpd) throw eUpd;
+    }
+
+    await logAudit(expLote.id, codigo, "Formação de lote de expedição", {
+      itens: itens.length,
+      pesoTotal,
+      custoTotal,
+    });
+    await loadAll();
+    return expLote.id;
   },
 
   async addFornecedor(f: { nome: string; documento: string; cidade: string }) {

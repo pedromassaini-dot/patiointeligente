@@ -17,6 +17,7 @@ import { Route as NovoEstoqueInicialRouteImport } from './routes/novo-estoque-in
 import { Route as MovimentacoesRouteImport } from './routes/movimentacoes'
 import { Route as GestorRouteImport } from './routes/gestor'
 import { Route as FornecedoresRouteImport } from './routes/fornecedores'
+import { Route as ExpedicaoRouteImport } from './routes/expedicao'
 import { Route as EstoqueRouteImport } from './routes/estoque'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BeneficiamentoRouteImport } from './routes/beneficiamento'
@@ -63,6 +64,11 @@ const FornecedoresRoute = FornecedoresRouteImport.update({
   path: '/fornecedores',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExpedicaoRoute = ExpedicaoRouteImport.update({
+  id: '/expedicao',
+  path: '/expedicao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EstoqueRoute = EstoqueRouteImport.update({
   id: '/estoque',
   path: '/estoque',
@@ -94,6 +100,7 @@ export interface FileRoutesByFullPath {
   '/beneficiamento': typeof BeneficiamentoRoute
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
+  '/expedicao': typeof ExpedicaoRoute
   '/fornecedores': typeof FornecedoresRoute
   '/gestor': typeof GestorRoute
   '/movimentacoes': typeof MovimentacoesRoute
@@ -109,6 +116,7 @@ export interface FileRoutesByTo {
   '/beneficiamento': typeof BeneficiamentoRoute
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
+  '/expedicao': typeof ExpedicaoRoute
   '/fornecedores': typeof FornecedoresRoute
   '/gestor': typeof GestorRoute
   '/movimentacoes': typeof MovimentacoesRoute
@@ -125,6 +133,7 @@ export interface FileRoutesById {
   '/beneficiamento': typeof BeneficiamentoRoute
   '/dashboard': typeof DashboardRoute
   '/estoque': typeof EstoqueRoute
+  '/expedicao': typeof ExpedicaoRoute
   '/fornecedores': typeof FornecedoresRoute
   '/gestor': typeof GestorRoute
   '/movimentacoes': typeof MovimentacoesRoute
@@ -142,6 +151,7 @@ export interface FileRouteTypes {
     | '/beneficiamento'
     | '/dashboard'
     | '/estoque'
+    | '/expedicao'
     | '/fornecedores'
     | '/gestor'
     | '/movimentacoes'
@@ -157,6 +167,7 @@ export interface FileRouteTypes {
     | '/beneficiamento'
     | '/dashboard'
     | '/estoque'
+    | '/expedicao'
     | '/fornecedores'
     | '/gestor'
     | '/movimentacoes'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/beneficiamento'
     | '/dashboard'
     | '/estoque'
+    | '/expedicao'
     | '/fornecedores'
     | '/gestor'
     | '/movimentacoes'
@@ -188,6 +200,7 @@ export interface RootRouteChildren {
   BeneficiamentoRoute: typeof BeneficiamentoRoute
   DashboardRoute: typeof DashboardRoute
   EstoqueRoute: typeof EstoqueRoute
+  ExpedicaoRoute: typeof ExpedicaoRoute
   FornecedoresRoute: typeof FornecedoresRoute
   GestorRoute: typeof GestorRoute
   MovimentacoesRoute: typeof MovimentacoesRoute
@@ -257,6 +270,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FornecedoresRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/expedicao': {
+      id: '/expedicao'
+      path: '/expedicao'
+      fullPath: '/expedicao'
+      preLoaderRoute: typeof ExpedicaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/estoque': {
       id: '/estoque'
       path: '/estoque'
@@ -300,6 +320,7 @@ const rootRouteChildren: RootRouteChildren = {
   BeneficiamentoRoute: BeneficiamentoRoute,
   DashboardRoute: DashboardRoute,
   EstoqueRoute: EstoqueRoute,
+  ExpedicaoRoute: ExpedicaoRoute,
   FornecedoresRoute: FornecedoresRoute,
   GestorRoute: GestorRoute,
   MovimentacoesRoute: MovimentacoesRoute,

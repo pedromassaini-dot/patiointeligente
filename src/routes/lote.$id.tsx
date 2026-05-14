@@ -14,6 +14,9 @@ import {
   perdaPercentual,
   margemEstimada,
   type StatusLote,
+  type Lote,
+  type TipoMaterial,
+  type Fornecedor,
 } from "@/lib/store";
 import {
   ArrowLeft,
@@ -36,8 +39,11 @@ import {
   Archive,
   History,
   Eye,
+  GitFork,
+  GitMerge,
+  Link2,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/lote/$id")({
@@ -46,7 +52,7 @@ export const Route = createFileRoute("/lote/$id")({
 
 const LOCALIZACOES = ["A1", "A2", "A3", "B1", "B2", "B3", "C1", "C2", "C3", "Doca"];
 
-type Tab = "movimentacoes" | "beneficiamentos" | "vendas" | "historico";
+type Tab = "movimentacoes" | "beneficiamentos" | "vendas" | "historico" | "rastreabilidade";
 
 const STATUS_OPTIONS: { value: StatusLote; label: string }[] = [
   { value: "estoque", label: "Em estoque" },
@@ -58,18 +64,32 @@ const STATUS_OPTIONS: { value: StatusLote; label: string }[] = [
 function LoteDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const { lote, tipo, fornecedor, tipos, fornecedores, userRole, historico } = useStore((s) => {
-    const l = s.lotes.find((x) => x.id === id);
-    return {
-      lote: l,
-      tipo: l ? s.tipos.find((t) => t.id === l.tipoMaterialId) : undefined,
-      fornecedor: l && l.fornecedorId ? s.fornecedores.find((f) => f.id === l.fornecedorId) : undefined,
-      tipos: s.tipos,
-      fornecedores: s.fornecedores,
-      userRole: s.user?.role,
-      historico: s.historico.filter((h) => h.loteId === id || (l && h.loteCodigo === l.codigo)),
-    };
-  });
+  const { lotes, tipos, fornecedores, userRole, allHistorico } = useStore((s) => ({
+    lotes: s.lotes,
+    tipos: s.tipos,
+    fornecedores: s.fornecedores,
+    userRole: s.user?.role,
+    allHistorico: s.historico,
+  }));
+
+  const lote = useMemo(() => lotes.find((x) => x.id === id), [lotes, id]);
+  const tipo = useMemo(() => lote ? tipos.find((t) => t.id === lote.tipoMaterialId) : undefined, [lote, tipos]);
+  const fornecedor = useMemo(
+    () => lote && lote.fornecedorId ? fornecedores.find((f) => f.id === lote.fornecedorId) : undefined,
+    [lote, fornecedores]
+  );
+  const historico = useMemo(
+    () => lote ? allHistorico.filter((h) => h.loteId === id || h.loteCodigo === lote.codigo) : [],
+    [lote, id, allHistorico]
+  );
+  const lotePai = useMemo(
+    () => lote?.sublotePaiId ? lotes.find((x) => x.id === lote.sublotePaiId) : undefined,
+    [lote, lotes]
+  );
+  const sublotesFilhos = useMemo(
+    () => lotes.filter((x) => x.sublotePaiId === id),
+    [lotes, id]
+  );
 
   const isGestor = userRole === "gestor";
 
@@ -528,12 +548,26 @@ function LoteDetailPage() {
                   <History className="h-3 w-3" /> Auditoria ({historico.length})
                 </span>
               </TabBtn>
+              <TabBtn active={tab === "rastreabilidade"} onClick={() => setTab("rastreabilidade")}>
+                <span className="inline-flex items-center gap-1">
+                  <GitFork className="h-3 w-3" /> Rastreabilidade
+                </span>
+              </TabBtn>
             </div>
             <div>
               {tab === "movimentacoes" && <Timeline items={movs} empty="Nenhuma movimentação." />}
               {tab === "beneficiamentos" && <Timeline items={benefs} empty="Nenhum beneficiamento registrado." />}
               {tab === "vendas" && <Timeline items={vendas} empty="Nenhuma venda registrada." />}
               {tab === "historico" && <HistoricoList items={historico} />}
+              {tab === "rastreabilidade" && (
+                <RastreabilidadeTab
+                  lote={lote}
+                  lotePai={lotePai}
+                  sublotesFilhos={sublotesFilhos}
+                  tipos={tipos}
+                  fornecedores={fornecedores}
+                />
+              )}
             </div>
           </div>
 
@@ -736,6 +770,118 @@ function Timeline({
         </li>
       ))}
     </ol>
+  );
+}
+
+function RastreabilidadeTab({
+  lote,
+  lotePai,
+  sublotesFilhos,
+  tipos,
+  fornecedores,
+}: {
+  lote: Lote;
+  lotePai?: Lote;
+  sublotesFilhos: Lote[];
+  tipos: TipoMaterial[];
+  fornecedores: Fornecedor[];
+}) {
+  const hasContent = lotePai || sublotesFilhos.length > 0 || lote.composicao.length > 0;
+
+  if (!hasContent) {
+    return (
+      <div className="text-xs text-muted-foreground text-center py-6">
+        Nenhuma relação de rastreabilidade registrada para este lote.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {lotePai && (
+        <section>
+          <div className="flex items-center gap-2 mb-2">
+            <Link2 className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lote pai (origem)</span>
+          </div>
+          <LoteLineItem lote={lotePai} tipos={tipos} fornecedores={fornecedores} />
+        </section>
+      )}
+
+      {sublotesFilhos.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-2">
+            <GitFork className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Sublotes gerados ({sublotesFilhos.length})
+            </span>
+          </div>
+          <div className="space-y-1.5">
+            {sublotesFilhos.map((s) => (
+              <LoteLineItem key={s.id} lote={s} tipos={tipos} fornecedores={fornecedores} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {lote.composicao.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-2">
+            <GitMerge className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Composição deste lote ({lote.composicao.length} origens)
+            </span>
+          </div>
+          <div className="space-y-1.5">
+            {lote.composicao.map((c) => {
+              const mat = tipos.find((x) => x.id === c.materialId);
+              const forn = fornecedores.find((x) => x.id === c.fornecedorId);
+              return (
+                <div key={c.id} className="flex items-center justify-between text-sm rounded-md border px-3 py-2 bg-muted/30">
+                  <div>
+                    <span className="font-medium">{c.origemLoteCodigo}</span>
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {mat?.nome ?? "—"}{forn ? ` · ${forn.nome}` : ""}
+                    </span>
+                  </div>
+                  <div className="text-right text-xs">
+                    <div className="font-medium">{fmtKg(c.pesoUsado)}</div>
+                    <div className="text-muted-foreground">{fmtBRL(c.custoProporcional)}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function LoteLineItem({
+  lote,
+  tipos,
+  fornecedores,
+}: {
+  lote: Lote;
+  tipos: TipoMaterial[];
+  fornecedores: Fornecedor[];
+}) {
+  const t = tipos.find((x) => x.id === lote.tipoMaterialId);
+  const f = fornecedores.find((x) => x.id === lote.fornecedorId);
+  return (
+    <div className="flex items-center justify-between text-sm rounded-md border px-3 py-2 bg-muted/30">
+      <div>
+        <span className="font-medium">{lote.codigo}</span>
+        <span className="text-xs text-muted-foreground ml-2">
+          {t?.nome ?? "—"}{f ? ` · ${f.nome}` : ""}
+        </span>
+      </div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">{fmtKg(lote.pesoAtual)}</span>
+        <StatusBadge status={lote.status} />
+      </div>
+    </div>
   );
 }
 

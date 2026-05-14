@@ -54,6 +54,14 @@ export function LoteDrawer({
     () => lote ? allHistorico.filter((h) => h.loteId === lote.id || h.loteCodigo === lote.codigo) : [],
     [lote, allHistorico]
   );
+  const lotePai = useMemo(
+    () => lote?.sublotePaiId ? lotes.find((x) => x.id === lote.sublotePaiId) : undefined,
+    [lote, lotes]
+  );
+  const sublotesFilhos = useMemo(
+    () => loteId ? lotes.filter((x) => x.sublotePaiId === loteId) : [],
+    [lotes, loteId]
+  );
 
   const isGestor = userRole === "gestor";
   const [tab, setTab] = useState<DrawerTab>("info");
@@ -274,6 +282,47 @@ export function LoteDrawer({
               <section className="bg-muted/30 rounded-xl p-4">
                 <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Observações</h4>
                 <p className="text-sm whitespace-pre-wrap">{lote.observacoes}</p>
+              </section>
+            )}
+
+            {/* Traceability */}
+            {(lotePai || sublotesFilhos.length > 0 || lote.composicao.length > 0) && (
+              <section className="bg-muted/30 rounded-xl p-4 space-y-3">
+                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rastreabilidade</h4>
+                {lotePai && (
+                  <div>
+                    <div className="text-[10px] font-medium text-muted-foreground mb-1">LOTE PAI</div>
+                    <div className="text-sm font-medium">{lotePai.codigo}
+                      <span className="text-xs text-muted-foreground ml-2">
+                        {tipos.find((t) => t.id === lotePai.tipoMaterialId)?.nome} · {fmtKg(lotePai.pesoAtual)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                {sublotesFilhos.length > 0 && (
+                  <div>
+                    <div className="text-[10px] font-medium text-muted-foreground mb-1">SUBLOTES GERADOS ({sublotesFilhos.length})</div>
+                    {sublotesFilhos.map((s) => (
+                      <div key={s.id} className="text-sm">
+                        <span className="font-medium">{s.codigo}</span>
+                        <span className="text-xs text-muted-foreground ml-2">
+                          {tipos.find((t) => t.id === s.tipoMaterialId)?.nome} · {fmtKg(s.pesoAtual)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {lote.composicao.length > 0 && (
+                  <div>
+                    <div className="text-[10px] font-medium text-muted-foreground mb-1">COMPOSIÇÃO ({lote.composicao.length} origens)</div>
+                    {lote.composicao.map((c) => (
+                      <div key={c.id} className="flex justify-between text-xs">
+                        <span className="font-medium">{c.origemLoteCodigo}</span>
+                        <span className="text-muted-foreground">{fmtKg(c.pesoUsado)} · {fmtBRL(c.custoProporcional)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </section>
             )}
           </>

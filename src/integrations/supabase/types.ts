@@ -180,9 +180,46 @@ export type Database = {
         }
         Relationships: []
       }
+      composicao_lotes: {
+        Row: {
+          id: string
+          expedicao_lote_id: string | null
+          origem_lote_id: string | null
+          origem_lote_codigo: string
+          peso_usado: number
+          custo_proporcional: number
+          fornecedor_id: string | null
+          material_id: string | null
+          criado_em: string
+        }
+        Insert: {
+          id?: string
+          expedicao_lote_id?: string | null
+          origem_lote_id?: string | null
+          origem_lote_codigo?: string
+          peso_usado: number
+          custo_proporcional?: number
+          fornecedor_id?: string | null
+          material_id?: string | null
+          criado_em?: string
+        }
+        Update: {
+          id?: string
+          expedicao_lote_id?: string | null
+          origem_lote_id?: string | null
+          origem_lote_codigo?: string
+          peso_usado?: number
+          custo_proporcional?: number
+          fornecedor_id?: string | null
+          material_id?: string | null
+          criado_em?: string
+        }
+        Relationships: []
+      }
       lotes: {
         Row: {
           codigo_lote: string
+          consumido: boolean
           criado_em: string
           criado_por: string | null
           custo_total_compra: number | null
@@ -191,14 +228,18 @@ export type Database = {
           fornecedor_id: string | null
           id: string
           localizacao_id: string | null
+          lote_tipo: string
           material_id: string
           observacoes: string | null
           peso_bruto: number
+          peso_disponivel: number | null
           preco_kg_compra: number
           status: Database["public"]["Enums"]["status_lote"]
+          sublote_pai_id: string | null
         }
         Insert: {
           codigo_lote: string
+          consumido?: boolean
           criado_em?: string
           criado_por?: string | null
           custo_total_compra?: number | null
@@ -207,14 +248,18 @@ export type Database = {
           fornecedor_id?: string | null
           id?: string
           localizacao_id?: string | null
+          lote_tipo?: string
           material_id: string
           observacoes?: string | null
           peso_bruto: number
+          peso_disponivel?: number | null
           preco_kg_compra: number
           status?: Database["public"]["Enums"]["status_lote"]
+          sublote_pai_id?: string | null
         }
         Update: {
           codigo_lote?: string
+          consumido?: boolean
           criado_em?: string
           criado_por?: string | null
           custo_total_compra?: number | null
@@ -223,11 +268,14 @@ export type Database = {
           fornecedor_id?: string | null
           id?: string
           localizacao_id?: string | null
+          lote_tipo?: string
           material_id?: string
           observacoes?: string | null
           peso_bruto?: number
+          peso_disponivel?: number | null
           preco_kg_compra?: number
           status?: Database["public"]["Enums"]["status_lote"]
+          sublote_pai_id?: string | null
         }
         Relationships: [
           {
