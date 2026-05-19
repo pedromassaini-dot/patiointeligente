@@ -74,12 +74,14 @@ export function StatusBadge({ status }: { status: StatusLote }) {
     estoque: "bg-success/15 text-success border-success/30",
     beneficiamento: "bg-warning/20 text-warning-foreground border-warning/40",
     vendido: "bg-muted text-muted-foreground border-border",
+    vendido_parcial: "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700",
     estoque_inicial: "bg-sky-500/15 text-sky-700 border-sky-400/40 dark:text-sky-300",
   };
   const label: Record<StatusLote, string> = {
     estoque: "Em estoque",
     beneficiamento: "Beneficiamento",
     vendido: "Vendido",
+    vendido_parcial: "Venda parcial",
     estoque_inicial: "Estoque Inicial",
   };
   return (

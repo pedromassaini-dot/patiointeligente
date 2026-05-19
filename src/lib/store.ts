@@ -37,12 +37,13 @@ export type Fornecedor = {
 
 export type Localizacao = { id: string; nome: string };
 
-export type StatusLote = "estoque" | "beneficiamento" | "vendido" | "estoque_inicial";
+export type StatusLote = "estoque" | "beneficiamento" | "vendido" | "vendido_parcial" | "estoque_inicial";
 type DBStatus = Database["public"]["Enums"]["status_lote"];
 
 function mapStatus(s: DBStatus): StatusLote {
   if (s === "em_beneficiamento") return "beneficiamento";
-  if (s === "vendido_total" || s === "vendido_parcial") return "vendido";
+  if (s === "vendido_total") return "vendido";
+  if (s === "vendido_parcial") return "vendido_parcial";
   if (s === "estoque_inicial") return "estoque_inicial";
   return "estoque";
 }
@@ -725,21 +726,48 @@ export const actions = {
     if (e2) throw e2;
   },
 
-  async venderLote(loteId: string, precoVenda: number, comprador = "Comprador") {
+  async venderLote(loteId: string, precoVenda: number, comprador = "Comprador", pesoVendido?: number) {
     const lote = state.lotes.find((l) => l.id === loteId);
     if (!lote) throw new Error("Lote não encontrado");
+
+    const peso = pesoVendido ?? lote.pesoDisponivel;
+
+    if (peso <= 0) throw new Error("Peso de venda deve ser maior que zero.");
+    if (peso > lote.pesoDisponivel + 0.001) {
+      throw new Error(
+        `Peso solicitado (${fmtKg(peso)}) excede o disponível (${fmtKg(lote.pesoDisponivel)}).`
+      );
+    }
+
     const { error: e1 } = await supabase.from("vendas").insert({
       lote_id: loteId,
       comprador,
-      peso_vendido: lote.pesoAtual,
+      peso_vendido: peso,
       preco_kg_venda: precoVenda,
     });
     if (e1) throw e1;
+
+    const novoDisp = Math.max(0, lote.pesoDisponivel - peso);
+    const isTotal = novoDisp <= 0.001;
+    const novoStatus: DBStatus = isTotal ? "vendido_total" : "vendido_parcial";
+
     const { error: e2 } = await supabase
       .from("lotes")
-      .update({ status: "vendido_total" })
+      .update({
+        status: novoStatus,
+        peso_disponivel: novoDisp,
+        consumido: isTotal,
+      })
       .eq("id", loteId);
     if (e2) throw e2;
+
+    await logAudit(loteId, lote.codigo, isTotal ? "Venda total" : "Venda parcial", {
+      pesoVendido: peso,
+      precoVenda,
+      pesoRestante: novoDisp,
+    });
+
+    await loadAll();
   },
 
   async addFotos(loteId: string, files: File[]) {
@@ -801,6 +829,7 @@ export const actions = {
       const dbStatus = ((): DBStatus => {
         if (patch.status === "beneficiamento") return "em_beneficiamento";
         if (patch.status === "vendido") return "vendido_total";
+        if (patch.status === "vendido_parcial") return "vendido_parcial";
         if (patch.status === "estoque_inicial") return "estoque_inicial";
         return "recebido";
       })();

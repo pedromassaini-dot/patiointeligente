@@ -24,7 +24,8 @@ const STATUS_OPTIONS: { value: StatusLote; label: string }[] = [
   { value: "estoque", label: "Em estoque" },
   { value: "estoque_inicial", label: "Estoque Inicial" },
   { value: "beneficiamento", label: "Beneficiamento" },
-  { value: "vendido", label: "Vendido" },
+  { value: "vendido_parcial", label: "Venda parcial" },
+  { value: "vendido", label: "Vendido (total)" },
 ];
 
 type DrawerTab = "info" | "historico" | "fotos";

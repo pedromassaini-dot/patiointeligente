@@ -58,7 +58,8 @@ const STATUS_OPTIONS: { value: StatusLote; label: string }[] = [
   { value: "estoque", label: "Em estoque" },
   { value: "estoque_inicial", label: "Estoque Inicial" },
   { value: "beneficiamento", label: "Beneficiamento" },
-  { value: "vendido", label: "Vendido" },
+  { value: "vendido_parcial", label: "Venda parcial" },
+  { value: "vendido", label: "Vendido (total)" },
 ];
 
 function LoteDetailPage() {
@@ -105,6 +106,7 @@ function LoteDetailPage() {
   const [custoBenef, setCustoBenef] = useState("");
   const [obsBenef, setObsBenef] = useState("");
   const [precoVenda, setPrecoVenda] = useState("");
+  const [pesoVendaStr, setPesoVendaStr] = useState("");
 
   const [editTipo, setEditTipo] = useState("");
   const [editForn, setEditForn] = useState("");
@@ -137,7 +139,7 @@ function LoteDetailPage() {
   const perdaPct = perdaPercentual(lote);
   const precoRef = lote.precoVenda ?? tipo?.precoMedioVenda ?? 0;
   const margem = margemEstimada(lote.pesoAtual, precoRef, custoFinal);
-  const vendido = lote.status === "vendido";
+  const vendido = lote.status === "vendido" || lote.consumido;
 
   const movs = lote.movimentacoes.slice().sort((a, b) => +new Date(b.data) - +new Date(a.data));
   const benefs = movs.filter((m) => m.tipo === "beneficiamento");
@@ -382,38 +384,80 @@ function LoteDetailPage() {
 
       {!vendido && showVenda && (
         <ActionPanel title="Registrar venda" onClose={() => setShowVenda(false)}>
-          <Field
-            label="Preço de venda (R$/kg) *"
-            hint={tipo?.precoMedioVenda ? `Sugerido: R$ ${tipo.precoMedioVenda.toFixed(2)}` : undefined}
-          >
-            <input
-              className={inputCls}
-              type="number"
-              step="0.01"
-              value={precoVenda}
-              onChange={(e) => setPrecoVenda(e.target.value)}
-              placeholder="Ex: 11.50"
-            />
-          </Field>
-          {parseFloat(precoVenda) > 0 && (
-            <div className="bg-muted/50 rounded-md p-3 text-sm space-y-1">
-              <Row label="Receita" value={fmtBRL(lote.pesoAtual * parseFloat(precoVenda))} />
-              <Row label="Custo proporcional" value={fmtBRL(lote.pesoAtual * custoFinal)} />
-              <Row
-                label="Margem"
-                value={fmtBRL(lote.pesoAtual * (parseFloat(precoVenda) - custoFinal))}
-                tone={parseFloat(precoVenda) >= custoFinal ? "success" : "destructive"}
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field
+              label="Preço de venda (R$/kg) *"
+              hint={tipo?.precoMedioVenda ? `Sugerido: R$ ${tipo.precoMedioVenda.toFixed(2)}` : undefined}
+            >
+              <input
+                className={inputCls}
+                type="number"
+                step="0.01"
+                value={precoVenda}
+                onChange={(e) => setPrecoVenda(e.target.value)}
+                placeholder="Ex: 11.50"
               />
-            </div>
-          )}
+            </Field>
+            <Field label={`Peso a vender (kg) — máx: ${lote.pesoDisponivel.toFixed(1)}`}>
+              <input
+                className={inputCls}
+                type="number"
+                step="0.1"
+                min="0.1"
+                max={lote.pesoDisponivel}
+                value={saving ? "" : (pesoVendaStr ?? "")}
+                onChange={(e) => setPesoVendaStr(e.target.value)}
+                placeholder={lote.pesoDisponivel.toFixed(1)}
+              />
+            </Field>
+          </div>
+          {parseFloat(precoVenda) > 0 && (() => {
+            const pv = parseFloat(pesoVendaStr || String(lote.pesoDisponivel));
+            const peso = Math.min(pv || lote.pesoDisponivel, lote.pesoDisponivel);
+            const rec = peso * parseFloat(precoVenda);
+            const cst = peso * custoFinal;
+            const isTotal = peso >= lote.pesoDisponivel - 0.001;
+            return (
+              <div className="bg-muted/50 rounded-md p-3 text-sm space-y-1">
+                <Row label="Peso vendido" value={fmtKg(peso)} />
+                <Row label="Receita" value={fmtBRL(rec)} />
+                <Row label="Custo proporcional" value={fmtBRL(cst)} />
+                <Row
+                  label="Margem"
+                  value={fmtBRL(rec - cst)}
+                  tone={parseFloat(precoVenda) >= custoFinal ? "success" : "destructive"}
+                />
+                {!isTotal && (
+                  <Row label="Saldo restante" value={fmtKg(lote.pesoDisponivel - peso)} />
+                )}
+                <div className="pt-1">
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${isTotal ? "bg-destructive/10 text-destructive" : "bg-warning/20 text-warning-foreground"}`}>
+                    {isTotal ? "Venda total" : "Venda parcial"}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
           <button
             className={btnPrimary + " w-full sm:w-auto"}
-            disabled={!precoVenda || parseFloat(precoVenda) <= 0}
-            onClick={() => {
-              actions.venderLote(lote.id, parseFloat(precoVenda));
-              toast.success("Venda registrada");
-              setPrecoVenda("");
-              setShowVenda(false);
+            disabled={!precoVenda || parseFloat(precoVenda) <= 0 || saving}
+            onClick={async () => {
+              const p = parseFloat(precoVenda);
+              const pv = parseFloat(pesoVendaStr || String(lote.pesoDisponivel));
+              const peso = pv > 0 ? Math.min(pv, lote.pesoDisponivel) : lote.pesoDisponivel;
+              if (p <= 0) { toast.error("Preço inválido."); return; }
+              setSaving(true);
+              try {
+                await actions.venderLote(lote.id, p, "Comprador", peso);
+                toast.success("Venda registrada");
+                setPrecoVenda("");
+                setPesoVendaStr("");
+                setShowVenda(false);
+              } catch (e) {
+                toast.error(e instanceof Error ? e.message : "Erro ao registrar venda");
+              } finally {
+                setSaving(false);
+              }
             }}
           >
             Confirmar venda
