@@ -542,10 +542,32 @@ async function uploadFotos(loteId: string, files: File[]): Promise<void> {
   }
 }
 
+async function nextCodigo(prefix: "LOT" | "EST" | "EXP"): Promise<string> {
+  // Find the highest sequence already used for this prefix to avoid reuse after deletions
+  const { data } = await supabase
+    .from("lotes")
+    .select("codigo_lote")
+    .like("codigo_lote", `${prefix}-%`)
+    .order("codigo_lote", { ascending: false });
+
+  let max = 0;
+  for (const row of data ?? []) {
+    // Match e.g. "LOT-0042" or "EST-0007-A" — extract the numeric part right after the prefix dash
+    const m = row.codigo_lote.match(new RegExp(`^${prefix}-(\\d+)`));
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n > max) max = n;
+    }
+  }
+
+  const next = max + 1;
+  const padded = String(next).padStart(4, "0");
+  return `${prefix}-${padded}`;
+}
+
+// Keep a legacy wrapper used by callers that previously used nextCodigoLote()
 async function nextCodigoLote(): Promise<string> {
-  const { count } = await supabase.from("lotes").select("*", { count: "exact", head: true });
-  const n = (count ?? 0) + 1;
-  return `LT-${String(1000 + n)}`;
+  return nextCodigo("LOT");
 }
 
 async function logAudit(loteId: string, loteCodigo: string, acao: string, detalhes?: Record<string, unknown>) {
@@ -658,7 +680,7 @@ export const actions = {
     observacoes?: string;
   }): Promise<Lote> {
     const localizacaoId = await ensureLocalizacao(input.localizacao);
-    const codigo = await nextCodigoLote();
+    const codigo = await nextCodigo("EST");
     const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
     const { data, error } = await supabase
       .from("lotes")
@@ -992,7 +1014,7 @@ export const actions = {
     const custoPorKg = pesoTotal > 0 ? custoTotal / pesoTotal : 0;
 
     const locId = await ensureLocalizacao(localizacao);
-    const codigo = await nextCodigoLote();
+    const codigo = await nextCodigo("EXP");
     const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
 
     // Create the expedition lot
