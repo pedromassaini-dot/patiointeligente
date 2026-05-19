@@ -222,7 +222,7 @@ async function loadAll() {
       supabase.from("vendas").select("*").order("data_venda"),
       supabase.from("movimentacoes").select("*").order("criado_em"),
       supabase.from("historico_lotes").select("*").order("criado_em", { ascending: false }).limit(200),
-      supabase.from("composicao_lotes").select("*"),
+      supabase.from("composicao_lotes").select("*").then((r) => ({ data: r.data ?? [], error: null as null })),
     ]);
     const err = e1 || e2 || e3 || e4 || e5 || e6 || e7 || e8;
     if (err) throw err;
@@ -238,7 +238,11 @@ async function loadAll() {
       const lMovs = (movs ?? []).filter((m) => m.lote_id === l.id);
 
       const ultBenef = lBenefs[lBenefs.length - 1];
-      const pesoAtual = ultBenef ? Number(ultBenef.peso_depois) : Number(l.peso_bruto);
+      // Only use peso_depois when > 0; split records peso_depois=0 (consumed) which is not the display weight
+      const pesoAtual =
+        ultBenef && Number(ultBenef.peso_depois) > 0
+          ? Number(ultBenef.peso_depois)
+          : Number(l.peso_bruto);
       const custoBenef = lBenefs.reduce((a, b) => a + Number(b.custo_beneficiamento || 0), 0);
       const ultVenda = lVendas[lVendas.length - 1];
 
@@ -618,13 +622,16 @@ export const actions = {
         peso_bruto: input.pesoEntrada,
         preco_kg_compra: input.custoUnitario,
         localizacao_id: localizacaoId,
-        status: "recebido",
-        observacoes: input.observacoes,
+        status: "recebido" as const,
+        observacoes: input.observacoes ?? null,
         criado_por: userId,
+        lote_tipo: "normal",
+        peso_disponivel: input.pesoEntrada,
+        consumido: false,
       })
       .select()
       .single();
-    if (error) throw error;
+    if (error) throw new Error(`Erro ao salvar lote: ${error.message}`);
 
     if (input.fotos.length) {
       try {
@@ -662,16 +669,18 @@ export const actions = {
         peso_bruto: input.pesoAtual,
         preco_kg_compra: input.custoEstimado,
         localizacao_id: localizacaoId,
-        status: "estoque_inicial",
-        observacoes: input.observacoes,
+        status: "estoque_inicial" as const,
+        observacoes: input.observacoes ?? null,
         criado_por: userId,
         data_entrada: input.dataReferencia,
         data_referencia: input.dataReferencia,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any)
+        lote_tipo: "normal",
+        peso_disponivel: input.pesoAtual,
+        consumido: false,
+      })
       .select()
       .single();
-    if (error) throw error;
+    if (error) throw new Error(`Erro ao salvar lote: ${error.message}`);
 
     if (input.fotos.length) {
       try {
