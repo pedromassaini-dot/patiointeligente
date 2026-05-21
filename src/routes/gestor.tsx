@@ -12,19 +12,7 @@ import {
   margemEstimada,
   type Lote,
 } from "@/lib/store";
-import {
-  DollarSign,
-  Boxes,
-  Clock,
-  TrendingDown,
-  TrendingUp,
-  AlertTriangle,
-  Camera,
-  ArrowDown,
-  ArrowUp,
-  MapPin,
-  Filter,
-} from "lucide-react";
+import { DollarSign, Boxes, Clock, TrendingDown, TrendingUp, TriangleAlert as AlertTriangle, Camera, ArrowDown, ArrowUp, MapPin, ListFilter as Filter } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   ResponsiveContainer,
@@ -93,10 +81,11 @@ function GestorPage() {
   const fornNome = (id: string) => fornecedores.find((f) => f.id === id)?.nome ?? "—";
 
   // ===== Métricas financeiras =====
-  const emEstoque = filtrados.filter((l) => l.status !== "vendido");
+  // Mirror dashboard logic: exclude consumed (split parents) and fully sold lots
+  const emEstoque = filtrados.filter((l) => !l.consumido && l.status !== "vendido" && l.status !== "vendido_parcial");
   const vendidos = filtrados.filter((l) => l.status === "vendido");
 
-  const pesoEstoque = emEstoque.reduce((a, l) => a + l.pesoAtual, 0);
+  const pesoEstoque = emEstoque.reduce((a, l) => a + l.pesoDisponivel, 0);
   const investido = emEstoque.reduce(
     (a, l) => a + custoTotalCompra(l) + (l.custoBeneficiamento || 0),
     0
@@ -127,7 +116,7 @@ function GestorPage() {
       const ls = emEstoque.filter((l) => l.tipoMaterialId === t.id);
       return {
         nome: t.nome.replace("Alumínio ", ""),
-        peso: +ls.reduce((a, l) => a + l.pesoAtual, 0).toFixed(0),
+        peso: +ls.reduce((a, l) => a + l.pesoDisponivel, 0).toFixed(0),
         valor: ls.reduce((a, l) => a + custoTotalCompra(l), 0),
         lotes: ls.length,
       };
@@ -140,7 +129,7 @@ function GestorPage() {
       const ls = emEstoque.filter((l) => l.localizacao === loc);
       return {
         nome: loc,
-        peso: +ls.reduce((a, l) => a + l.pesoAtual, 0).toFixed(0),
+        peso: +ls.reduce((a, l) => a + l.pesoDisponivel, 0).toFixed(0),
         lotes: ls.length,
       };
     })
