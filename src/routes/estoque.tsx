@@ -28,6 +28,8 @@ function EstoquePage() {
 
   const filtrados = useMemo(() => {
     return lotes.filter((l) => {
+      // By default hide consumed (split) lots; only show them when explicitly filtering by beneficiamento
+      if (!status && l.consumido) return false;
       if (tipo && l.tipoMaterialId !== tipo) return false;
       if (forn && l.fornecedorId !== forn) return false;
       if (status && l.status !== status) return false;

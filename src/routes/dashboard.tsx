@@ -42,14 +42,14 @@ function DashboardPage() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  // emEstoque includes estoque_inicial — both count toward stock totals
-  const emEstoque = lotes.filter((l) => l.status !== "vendido");
+  // emEstoque: available lots only — exclude consumed parents (split) and fully sold
+  const emEstoque = lotes.filter((l) => !l.consumido && l.status !== "vendido" && l.status !== "vendido_parcial");
   const estoqueInicial = emEstoque.filter((l) => l.isEstoqueInicial);
   const lotesProprios = emEstoque.filter((l) => !l.isEstoqueInicial);
 
-  // Peso total em estoque
-  const pesoTotal = emEstoque.reduce((a, l) => a + l.pesoAtual, 0);
-  const pesoInicial = estoqueInicial.reduce((a, l) => a + l.pesoAtual, 0);
+  // Peso total em estoque — use pesoDisponivel to reflect partial sales/consumption
+  const pesoTotal = emEstoque.reduce((a, l) => a + l.pesoDisponivel, 0);
+  const pesoInicial = estoqueInicial.reduce((a, l) => a + l.pesoDisponivel, 0);
 
   // Valor total investido (custo de compra de todos os lotes em estoque)
   const valorInvestido = emEstoque.reduce((a, l) => a + custoTotalCompra(l) + (l.custoBeneficiamento || 0), 0);
@@ -131,7 +131,7 @@ function DashboardPage() {
     const lotesT = emEstoque.filter((l) => l.tipoMaterialId === t.id);
     return {
       nome: t.nome.replace("Alumínio ", ""),
-      peso: lotesT.reduce((a, l) => a + l.pesoAtual, 0),
+      peso: lotesT.reduce((a, l) => a + l.pesoDisponivel, 0),
       lotes: lotesT.length,
     };
   });
