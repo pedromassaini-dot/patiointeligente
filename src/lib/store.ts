@@ -578,9 +578,10 @@ async function logAudit(loteId: string, loteCodigo: string, acao: string, detalh
     usuario_id: user?.id ?? null,
     usuario_nome: user?.nome ?? "Sistema",
     acao,
-    detalhes: detalhes ?? null,
+    detalhes: (detalhes ?? null) as never,
   });
 }
+
 
 // ===== Actions =====
 export const actions = {
