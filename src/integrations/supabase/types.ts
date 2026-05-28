@@ -61,6 +61,71 @@ export type Database = {
           },
         ]
       }
+      composicao_lotes: {
+        Row: {
+          criado_em: string
+          custo_proporcional: number
+          expedicao_lote_id: string | null
+          fornecedor_id: string | null
+          id: string
+          material_id: string | null
+          origem_lote_codigo: string
+          origem_lote_id: string | null
+          peso_usado: number
+        }
+        Insert: {
+          criado_em?: string
+          custo_proporcional?: number
+          expedicao_lote_id?: string | null
+          fornecedor_id?: string | null
+          id?: string
+          material_id?: string | null
+          origem_lote_codigo?: string
+          origem_lote_id?: string | null
+          peso_usado: number
+        }
+        Update: {
+          criado_em?: string
+          custo_proporcional?: number
+          expedicao_lote_id?: string | null
+          fornecedor_id?: string | null
+          id?: string
+          material_id?: string | null
+          origem_lote_codigo?: string
+          origem_lote_id?: string | null
+          peso_usado?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "composicao_lotes_expedicao_lote_id_fkey"
+            columns: ["expedicao_lote_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "composicao_lotes_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "composicao_lotes_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materiais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "composicao_lotes_origem_lote_id_fkey"
+            columns: ["origem_lote_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fornecedores: {
         Row: {
           cidade: string | null
@@ -123,6 +188,47 @@ export type Database = {
           },
         ]
       }
+      historico_lotes: {
+        Row: {
+          acao: string
+          criado_em: string
+          detalhes: Json | null
+          id: string
+          lote_codigo: string
+          lote_id: string | null
+          usuario_id: string | null
+          usuario_nome: string
+        }
+        Insert: {
+          acao: string
+          criado_em?: string
+          detalhes?: Json | null
+          id?: string
+          lote_codigo?: string
+          lote_id?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string
+        }
+        Update: {
+          acao?: string
+          criado_em?: string
+          detalhes?: Json | null
+          id?: string
+          lote_codigo?: string
+          lote_id?: string | null
+          usuario_id?: string | null
+          usuario_nome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_lotes_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       localizacoes_patio: {
         Row: {
           ativo: boolean
@@ -150,48 +256,63 @@ export type Database = {
       lotes: {
         Row: {
           codigo_lote: string
+          consumido: boolean
           criado_em: string
           criado_por: string | null
           custo_total_compra: number | null
           data_entrada: string
-          fornecedor_id: string
+          data_referencia: string | null
+          fornecedor_id: string | null
           id: string
           localizacao_id: string | null
+          lote_tipo: string
           material_id: string
           observacoes: string | null
           peso_bruto: number
+          peso_disponivel: number | null
           preco_kg_compra: number
           status: Database["public"]["Enums"]["status_lote"]
+          sublote_pai_id: string | null
         }
         Insert: {
           codigo_lote: string
+          consumido?: boolean
           criado_em?: string
           criado_por?: string | null
           custo_total_compra?: number | null
           data_entrada?: string
-          fornecedor_id: string
+          data_referencia?: string | null
+          fornecedor_id?: string | null
           id?: string
           localizacao_id?: string | null
+          lote_tipo?: string
           material_id: string
           observacoes?: string | null
           peso_bruto: number
+          peso_disponivel?: number | null
           preco_kg_compra: number
           status?: Database["public"]["Enums"]["status_lote"]
+          sublote_pai_id?: string | null
         }
         Update: {
           codigo_lote?: string
+          consumido?: boolean
           criado_em?: string
           criado_por?: string | null
           custo_total_compra?: number | null
           data_entrada?: string
-          fornecedor_id?: string
+          data_referencia?: string | null
+          fornecedor_id?: string | null
           id?: string
           localizacao_id?: string | null
+          lote_tipo?: string
           material_id?: string
           observacoes?: string | null
           peso_bruto?: number
+          peso_disponivel?: number | null
           preco_kg_compra?: number
           status?: Database["public"]["Enums"]["status_lote"]
+          sublote_pai_id?: string | null
         }
         Relationships: [
           {
@@ -220,6 +341,13 @@ export type Database = {
             columns: ["material_id"]
             isOneToOne: false
             referencedRelation: "materiais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_sublote_pai_id_fkey"
+            columns: ["sublote_pai_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
             referencedColumns: ["id"]
           },
         ]
@@ -416,6 +544,7 @@ export type Database = {
         | "pronto"
         | "vendido_parcial"
         | "vendido_total"
+        | "estoque_inicial"
       tipo_movimentacao:
         | "entrada"
         | "transferencia"
@@ -556,6 +685,7 @@ export const Constants = {
         "pronto",
         "vendido_parcial",
         "vendido_total",
+        "estoque_inicial",
       ],
       tipo_movimentacao: [
         "entrada",
