@@ -61,39 +61,6 @@ export type Database = {
           },
         ]
       }
-      historico_lotes: {
-        Row: {
-          id: string
-          lote_id: string | null
-          lote_codigo: string
-          usuario_id: string | null
-          usuario_nome: string
-          acao: string
-          detalhes: Json | null
-          criado_em: string
-        }
-        Insert: {
-          id?: string
-          lote_id?: string | null
-          lote_codigo?: string
-          usuario_id?: string | null
-          usuario_nome?: string
-          acao: string
-          detalhes?: Json | null
-          criado_em?: string
-        }
-        Update: {
-          id?: string
-          lote_id?: string | null
-          lote_codigo?: string
-          usuario_id?: string | null
-          usuario_nome?: string
-          acao?: string
-          detalhes?: Json | null
-          criado_em?: string
-        }
-        Relationships: []
-      }
       fornecedores: {
         Row: {
           cidade: string | null
@@ -180,102 +147,51 @@ export type Database = {
         }
         Relationships: []
       }
-      composicao_lotes: {
-        Row: {
-          id: string
-          expedicao_lote_id: string | null
-          origem_lote_id: string | null
-          origem_lote_codigo: string
-          peso_usado: number
-          custo_proporcional: number
-          fornecedor_id: string | null
-          material_id: string | null
-          criado_em: string
-        }
-        Insert: {
-          id?: string
-          expedicao_lote_id?: string | null
-          origem_lote_id?: string | null
-          origem_lote_codigo?: string
-          peso_usado: number
-          custo_proporcional?: number
-          fornecedor_id?: string | null
-          material_id?: string | null
-          criado_em?: string
-        }
-        Update: {
-          id?: string
-          expedicao_lote_id?: string | null
-          origem_lote_id?: string | null
-          origem_lote_codigo?: string
-          peso_usado?: number
-          custo_proporcional?: number
-          fornecedor_id?: string | null
-          material_id?: string | null
-          criado_em?: string
-        }
-        Relationships: []
-      }
       lotes: {
         Row: {
           codigo_lote: string
-          consumido: boolean
           criado_em: string
           criado_por: string | null
           custo_total_compra: number | null
           data_entrada: string
-          data_referencia: string | null
-          fornecedor_id: string | null
+          fornecedor_id: string
           id: string
           localizacao_id: string | null
-          lote_tipo: string
           material_id: string
           observacoes: string | null
           peso_bruto: number
-          peso_disponivel: number | null
           preco_kg_compra: number
           status: Database["public"]["Enums"]["status_lote"]
-          sublote_pai_id: string | null
         }
         Insert: {
           codigo_lote: string
-          consumido?: boolean
           criado_em?: string
           criado_por?: string | null
           custo_total_compra?: number | null
           data_entrada?: string
-          data_referencia?: string | null
-          fornecedor_id?: string | null
+          fornecedor_id: string
           id?: string
           localizacao_id?: string | null
-          lote_tipo?: string
           material_id: string
           observacoes?: string | null
           peso_bruto: number
-          peso_disponivel?: number | null
           preco_kg_compra: number
           status?: Database["public"]["Enums"]["status_lote"]
-          sublote_pai_id?: string | null
         }
         Update: {
           codigo_lote?: string
-          consumido?: boolean
           criado_em?: string
           criado_por?: string | null
           custo_total_compra?: number | null
           data_entrada?: string
-          data_referencia?: string | null
-          fornecedor_id?: string | null
+          fornecedor_id?: string
           id?: string
           localizacao_id?: string | null
-          lote_tipo?: string
           material_id?: string
           observacoes?: string | null
           peso_bruto?: number
-          peso_disponivel?: number | null
           preco_kg_compra?: number
           status?: Database["public"]["Enums"]["status_lote"]
-          sublote_pai_id?: string | null
         }
         Relationships: [
           {
@@ -482,7 +398,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_gestor: { Args: { _user_id: string }; Returns: boolean }
+      tem_perfil: {
+        Args: {
+          _perfil: Database["public"]["Enums"]["perfil_usuario"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      usuario_ativo: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       perfil_usuario: "operador" | "gestor"
@@ -492,7 +416,6 @@ export type Database = {
         | "pronto"
         | "vendido_parcial"
         | "vendido_total"
-        | "estoque_inicial"
       tipo_movimentacao:
         | "entrada"
         | "transferencia"
