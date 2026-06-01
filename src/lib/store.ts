@@ -917,12 +917,14 @@ export const actions = {
     await logAudit(loteId, lote.codigo, "Exclusão", { material: lote.tipoMaterialId, peso: lote.pesoAtual });
 
     // Remove storage files for photos (fotos_lote rows are cascade-deleted by DB)
-    for (const foto of lote.fotos) {
-      const m = foto.url.match(/\/fotos-lote\/(.+)$/);
-      if (m) {
-        await supabase.storage.from("fotos-lote").remove([m[1]]);
-      }
-    }
+    const { data: fotoRows } = await supabase.from("fotos_lote").select("url_foto").eq("lote_id", loteId);
+    const paths = (fotoRows ?? [])
+      .map((r) => {
+        const m = r.url_foto.match(/\/fotos-lote\/([^?]+)/);
+        return m ? m[1] : r.url_foto;
+      })
+      .filter(Boolean);
+    if (paths.length) await supabase.storage.from("fotos-lote").remove(paths);
 
     // Delete child rows that have NO ACTION foreign keys (order matters)
     const { error: eVendas } = await supabase.from("vendas").delete().eq("lote_id", loteId);
