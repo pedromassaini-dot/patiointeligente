@@ -828,11 +828,11 @@ export const actions = {
   },
 
   async removeFoto(loteId: string, fotoId: string) {
-    const lote = state.lotes.find((l) => l.id === loteId);
-    const foto = lote?.fotos.find((f) => f.id === fotoId);
-    if (foto) {
-      const m = foto.url.match(/\/fotos-lote\/(.+)$/);
-      if (m) await supabase.storage.from("fotos-lote").remove([m[1]]);
+    const { data: row } = await supabase.from("fotos_lote").select("url_foto").eq("id", fotoId).single();
+    if (row?.url_foto) {
+      const m = row.url_foto.match(/\/fotos-lote\/([^?]+)/);
+      const path = m ? m[1] : row.url_foto;
+      await supabase.storage.from("fotos-lote").remove([path]);
     }
     const { error } = await supabase.from("fotos_lote").delete().eq("id", fotoId);
     if (error) throw error;
