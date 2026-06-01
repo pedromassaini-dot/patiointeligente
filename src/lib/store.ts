@@ -229,10 +229,30 @@ async function loadAll() {
 
     const locById = new Map((localizacoes ?? []).map((l) => [l.id, l.nome]));
 
+    // Resolve signed URLs for the private fotos-lote bucket.
+    // url_foto may be either a bare storage path or a legacy public URL — extract the path either way.
+    const fotoPathOf = (raw: string): string => {
+      const m = raw.match(/\/fotos-lote\/(.+)$/);
+      return m ? m[1] : raw;
+    };
+    const fotoPaths = (fotos ?? []).map((f) => fotoPathOf(f.url_foto));
+    const signedByPath = new Map<string, string>();
+    if (fotoPaths.length) {
+      const { data: signed } = await supabase.storage
+        .from("fotos-lote")
+        .createSignedUrls(fotoPaths, 60 * 60);
+      for (const s of signed ?? []) {
+        if (s.path && s.signedUrl) signedByPath.set(s.path, s.signedUrl);
+      }
+    }
+
     const lotesAssembled: Lote[] = (lotes ?? []).map((l) => {
       const lFotos: Foto[] = (fotos ?? [])
         .filter((f) => f.lote_id === l.id)
-        .map((f) => ({ id: f.id, url: f.url_foto }));
+        .map((f) => {
+          const path = fotoPathOf(f.url_foto);
+          return { id: f.id, url: signedByPath.get(path) ?? f.url_foto };
+        });
       const lBenefs = (benefs ?? []).filter((b) => b.lote_id === l.id);
       const lVendas = (vendas ?? []).filter((v) => v.lote_id === l.id);
       const lMovs = (movs ?? []).filter((m) => m.lote_id === l.id);
