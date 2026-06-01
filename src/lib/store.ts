@@ -229,10 +229,30 @@ async function loadAll() {
 
     const locById = new Map((localizacoes ?? []).map((l) => [l.id, l.nome]));
 
+    // Resolve signed URLs for the private fotos-lote bucket.
+    // url_foto may be either a bare storage path or a legacy public URL — extract the path either way.
+    const fotoPathOf = (raw: string): string => {
+      const m = raw.match(/\/fotos-lote\/(.+)$/);
+      return m ? m[1] : raw;
+    };
+    const fotoPaths = (fotos ?? []).map((f) => fotoPathOf(f.url_foto));
+    const signedByPath = new Map<string, string>();
+    if (fotoPaths.length) {
+      const { data: signed } = await supabase.storage
+        .from("fotos-lote")
+        .createSignedUrls(fotoPaths, 60 * 60);
+      for (const s of signed ?? []) {
+        if (s.path && s.signedUrl) signedByPath.set(s.path, s.signedUrl);
+      }
+    }
+
     const lotesAssembled: Lote[] = (lotes ?? []).map((l) => {
       const lFotos: Foto[] = (fotos ?? [])
         .filter((f) => f.lote_id === l.id)
-        .map((f) => ({ id: f.id, url: f.url_foto }));
+        .map((f) => {
+          const path = fotoPathOf(f.url_foto);
+          return { id: f.id, url: signedByPath.get(path) ?? f.url_foto };
+        });
       const lBenefs = (benefs ?? []).filter((b) => b.lote_id === l.id);
       const lVendas = (vendas ?? []).filter((v) => v.lote_id === l.id);
       const lMovs = (movs ?? []).filter((m) => m.lote_id === l.id);
@@ -533,10 +553,10 @@ async function uploadFotos(loteId: string, files: File[]): Promise<void> {
       contentType: file.type || "image/jpeg",
     });
     if (upErr) throw upErr;
-    const { data: pub } = supabase.storage.from("fotos-lote").getPublicUrl(path);
+    // Store the storage path (not a URL). Reads resolve a signed URL on demand.
     const { error: insErr } = await supabase.from("fotos_lote").insert({
       lote_id: loteId,
-      url_foto: pub.publicUrl,
+      url_foto: path,
     });
     if (insErr) throw insErr;
   }
@@ -808,11 +828,11 @@ export const actions = {
   },
 
   async removeFoto(loteId: string, fotoId: string) {
-    const lote = state.lotes.find((l) => l.id === loteId);
-    const foto = lote?.fotos.find((f) => f.id === fotoId);
-    if (foto) {
-      const m = foto.url.match(/\/fotos-lote\/(.+)$/);
-      if (m) await supabase.storage.from("fotos-lote").remove([m[1]]);
+    const { data: row } = await supabase.from("fotos_lote").select("url_foto").eq("id", fotoId).single();
+    if (row?.url_foto) {
+      const m = row.url_foto.match(/\/fotos-lote\/([^?]+)/);
+      const path = m ? m[1] : row.url_foto;
+      await supabase.storage.from("fotos-lote").remove([path]);
     }
     const { error } = await supabase.from("fotos_lote").delete().eq("id", fotoId);
     if (error) throw error;
@@ -897,12 +917,14 @@ export const actions = {
     await logAudit(loteId, lote.codigo, "Exclusão", { material: lote.tipoMaterialId, peso: lote.pesoAtual });
 
     // Remove storage files for photos (fotos_lote rows are cascade-deleted by DB)
-    for (const foto of lote.fotos) {
-      const m = foto.url.match(/\/fotos-lote\/(.+)$/);
-      if (m) {
-        await supabase.storage.from("fotos-lote").remove([m[1]]);
-      }
-    }
+    const { data: fotoRows } = await supabase.from("fotos_lote").select("url_foto").eq("lote_id", loteId);
+    const paths = (fotoRows ?? [])
+      .map((r) => {
+        const m = r.url_foto.match(/\/fotos-lote\/([^?]+)/);
+        return m ? m[1] : r.url_foto;
+      })
+      .filter(Boolean);
+    if (paths.length) await supabase.storage.from("fotos-lote").remove(paths);
 
     // Delete child rows that have NO ACTION foreign keys (order matters)
     const { error: eVendas } = await supabase.from("vendas").delete().eq("lote_id", loteId);
