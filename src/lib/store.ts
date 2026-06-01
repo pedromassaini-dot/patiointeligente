@@ -553,10 +553,10 @@ async function uploadFotos(loteId: string, files: File[]): Promise<void> {
       contentType: file.type || "image/jpeg",
     });
     if (upErr) throw upErr;
-    const { data: pub } = supabase.storage.from("fotos-lote").getPublicUrl(path);
+    // Store the storage path (not a URL). Reads resolve a signed URL on demand.
     const { error: insErr } = await supabase.from("fotos_lote").insert({
       lote_id: loteId,
-      url_foto: pub.publicUrl,
+      url_foto: path,
     });
     if (insErr) throw insErr;
   }
