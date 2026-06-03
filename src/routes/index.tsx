@@ -28,22 +28,14 @@ function LoginPage() {
     if (!email || !password) return toast.error("Informe e-mail e senha.");
     setBusy(true);
     try {
-      if (mode === "login") {
-        await actions.loginEmail(email, password);
-      } else {
-        if (!nome.trim()) {
-          setBusy(false);
-          return toast.error("Informe seu nome.");
-        }
-        await actions.signupEmail(email, password, nome.trim());
-        toast.success("Conta criada! Você já pode entrar.");
-      }
+      await actions.loginEmail(email, password);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro de autenticação");
     } finally {
       setBusy(false);
     }
   };
+
 
   if (!authChecked) {
     return (
