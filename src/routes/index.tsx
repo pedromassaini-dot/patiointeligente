@@ -52,84 +52,56 @@ function LoginPage() {
           <div className="h-12 w-12 rounded-xl bg-primary text-primary-foreground flex items-center justify-center">
             <Factory className="h-6 w-6" />
           </div>
-          <div>
-            <h1 className="text-xl font-bold">Pátio Inteligente</h1>
-            <p className="text-xs text-muted-foreground">Gestão de sucata de alumínio</p>
-          </div>
+        <div>
+          <h1 className="text-xl font-bold">Pátio Inteligente</h1>
+          <p className="text-xs text-muted-foreground">Gestão de sucata de alumínio</p>
         </div>
+      </div>
 
-        <div className="flex gap-1 p-1 bg-muted rounded-lg text-sm">
-          <button
-            type="button"
-            onClick={() => setMode("login")}
-            className={`flex-1 py-2 rounded-md transition ${mode === "login" ? "bg-card shadow font-medium" : "text-muted-foreground"}`}
-          >
-            Entrar
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("signup")}
-            className={`flex-1 py-2 rounded-md transition ${mode === "signup" ? "bg-card shadow font-medium" : "text-muted-foreground"}`}
-          >
-            Criar conta
-          </button>
+      <form onSubmit={submit} className="space-y-3">
+        <div>
+          <label className="text-xs font-medium block mb-1">E-mail</label>
+          <input
+            className={inputCls}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="voce@empresa.com"
+            autoComplete="email"
+          />
         </div>
-
-        <form onSubmit={submit} className="space-y-3">
-          {mode === "signup" && (
-            <div>
-              <label className="text-xs font-medium block mb-1">Nome</label>
-              <input
-                className={inputCls}
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                placeholder="Seu nome"
-                autoComplete="name"
-              />
-            </div>
-          )}
-          <div>
-            <label className="text-xs font-medium block mb-1">E-mail</label>
-            <input
-              className={inputCls}
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="voce@empresa.com"
-              autoComplete="email"
-            />
+        <div>
+          <label className="text-xs font-medium block mb-1">Senha</label>
+          <input
+            className={inputCls}
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            autoComplete="current-password"
+          />
+        </div>
+        {authError && (
+          <div className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-md p-2">
+            {authError}
+            <button
+              type="button"
+              onClick={() => actions.logout()}
+              className="ml-2 underline"
+            >
+              Sair
+            </button>
           </div>
-          <div>
-            <label className="text-xs font-medium block mb-1">Senha</label>
-            <input
-              className={inputCls}
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-            />
-          </div>
-          {authError && (
-            <div className="text-xs text-destructive bg-destructive/10 border border-destructive/30 rounded-md p-2">
-              {authError}
-              <button
-                type="button"
-                onClick={() => actions.logout()}
-                className="ml-2 underline"
-              >
-                Sair
-              </button>
-            </div>
-          )}
-          <button type="submit" disabled={busy} className={btnPrimary + " w-full justify-center"}>
-            {busy ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}
-          </button>
-        </form>
+        )}
+        <button type="submit" disabled={busy} className={btnPrimary + " w-full justify-center"}>
+          {busy ? "Aguarde..." : "Entrar"}
+        </button>
+      </form>
 
-        <p className="text-[11px] text-center text-muted-foreground pt-4 border-t">
-          Novos usuários entram como <strong>operador</strong>. Um gestor pode promover seu perfil depois.
-        </p>
+      <p className="text-[11px] text-center text-muted-foreground pt-4 border-t">
+        Acesso restrito. Contate um gestor para criar seu cadastro.
+      </p>
+
       </div>
     </div>
   );
