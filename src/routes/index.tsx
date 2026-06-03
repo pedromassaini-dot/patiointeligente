@@ -14,11 +14,10 @@ function LoginPage() {
   const authChecked = useStore((s) => s.authChecked);
   const authError = useStore((s) => s.authError);
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [nome, setNome] = useState("");
   const [busy, setBusy] = useState(false);
+
 
   useEffect(() => {
     if (user) navigate({ to: user.role === "operador" ? "/operador" : "/dashboard" });
