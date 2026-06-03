@@ -46,10 +46,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (authChecked && !user && path !== "/") {
       void navigate({ to: "/" });
-    } else if (authChecked && user?.role === "operador" && path !== "/operador") {
-      void navigate({ to: "/operador" });
+      return;
+    }
+    if (authChecked && user?.role === "operador") {
+      const allowed = NAV.filter((i) => i.roles.includes("operador")).map((i) => i.to);
+      allowed.push("/operador");
+      const ok = allowed.some((p) => path === p || path.startsWith(p + "/"));
+      if (!ok) void navigate({ to: "/operador" });
     }
   }, [authChecked, user, path, navigate]);
+
+
 
 
   if (!authChecked) {
