@@ -21,6 +21,7 @@ function VendaPage() {
   const [preco, setPreco] = useState("");
   const [pesoVendidoStr, setPesoVendidoStr] = useState("");
   const [comprador, setComprador] = useState("");
+  const [observacoes, setObservacoes] = useState("");
   const [saving, setSaving] = useState(false);
 
   const lote = disponiveis.find((l) => l.id === loteId);
@@ -39,6 +40,7 @@ function VendaPage() {
     setPreco("");
     setPesoVendidoStr("");
     setComprador("");
+    setObservacoes("");
   };
 
   const submit = async (e: React.FormEvent) => {
@@ -57,7 +59,7 @@ function VendaPage() {
     }
     setSaving(true);
     try {
-      await actions.venderLote(lote.id, precoNum, comprador.trim() || "Comprador", pesoNum);
+      await actions.venderLote(lote.id, precoNum, comprador.trim() || "Comprador", pesoNum, observacoes);
       toast.success(
         isTotal
           ? `Venda total do lote ${lote.codigo} registrada.`
@@ -146,6 +148,17 @@ function VendaPage() {
               value={preco}
               onChange={(e) => setPreco(e.target.value)}
               disabled={!lote}
+            />
+          </Field>
+
+          <Field label="Observações" hint="Opcional">
+            <textarea
+              className={inputCls + " min-h-[72px] resize-y"}
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              placeholder="Notas sobre a venda (forma de pagamento, condições, etc.)"
+              disabled={!lote}
+              rows={3}
             />
           </Field>
 

@@ -301,7 +301,9 @@ async function loadAll() {
           id: v.id,
           data: v.data_venda,
           tipo: "saida" as const,
-          descricao: `Venda a R$ ${Number(v.preco_kg_venda).toFixed(2)}/kg para ${v.comprador}`,
+          descricao:
+            `Venda a R$ ${Number(v.preco_kg_venda).toFixed(2)}/kg para ${v.comprador}` +
+            (v.observacoes ? ` (${v.observacoes})` : ""),
           operador: "—",
         })),
       ].sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
@@ -778,7 +780,13 @@ export const actions = {
     if (e2) throw e2;
   },
 
-  async venderLote(loteId: string, precoVenda: number, comprador = "Comprador", pesoVendido?: number) {
+  async venderLote(
+    loteId: string,
+    precoVenda: number,
+    comprador = "Comprador",
+    pesoVendido?: number,
+    observacoes?: string
+  ) {
     const lote = state.lotes.find((l) => l.id === loteId);
     if (!lote) throw new Error("Lote não encontrado");
 
@@ -791,11 +799,14 @@ export const actions = {
       );
     }
 
+    const obs = observacoes?.trim() || null;
+
     const { error: e1 } = await supabase.from("vendas").insert({
       lote_id: loteId,
       comprador,
       peso_vendido: peso,
       preco_kg_venda: precoVenda,
+      observacoes: obs,
     });
     if (e1) throw e1;
 
@@ -817,6 +828,7 @@ export const actions = {
       pesoVendido: peso,
       precoVenda,
       pesoRestante: novoDisp,
+      observacoes: obs ?? undefined,
     });
 
     await loadAll();
