@@ -21,6 +21,7 @@ function VendaPage() {
   const [preco, setPreco] = useState("");
   const [pesoVendidoStr, setPesoVendidoStr] = useState("");
   const [comprador, setComprador] = useState("");
+  const [observacoes, setObservacoes] = useState("");
   const [saving, setSaving] = useState(false);
 
   const lote = disponiveis.find((l) => l.id === loteId);
