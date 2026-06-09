@@ -151,6 +151,17 @@ function VendaPage() {
             />
           </Field>
 
+          <Field label="Observações" hint="Opcional">
+            <textarea
+              className={inputCls + " min-h-[72px] resize-y"}
+              value={observacoes}
+              onChange={(e) => setObservacoes(e.target.value)}
+              placeholder="Notas sobre a venda (forma de pagamento, condições, etc.)"
+              disabled={!lote}
+              rows={3}
+            />
+          </Field>
+
           {lote && precoNum > 0 && pesoEfetivo > 0 && (
             <div className="bg-muted/50 rounded-md p-3 text-sm space-y-1">
               <div className="flex justify-between">
