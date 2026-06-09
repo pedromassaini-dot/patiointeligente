@@ -40,6 +40,7 @@ function VendaPage() {
     setPreco("");
     setPesoVendidoStr("");
     setComprador("");
+    setObservacoes("");
   };
 
   const submit = async (e: React.FormEvent) => {
