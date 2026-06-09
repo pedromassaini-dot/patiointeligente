@@ -826,6 +826,7 @@ export const actions = {
       pesoVendido: peso,
       precoVenda,
       pesoRestante: novoDisp,
+      observacoes: obs ?? undefined,
     });
 
     await loadAll();
