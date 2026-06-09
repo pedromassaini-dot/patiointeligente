@@ -143,7 +143,7 @@ function VendaPage() {
             <input
               className={inputCls}
               type="number"
-              step="0.0001"
+              step="0.000001"
               min="0"
               value={preco}
               onChange={(e) => setPreco(e.target.value)}
