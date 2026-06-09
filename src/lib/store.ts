@@ -301,7 +301,9 @@ async function loadAll() {
           id: v.id,
           data: v.data_venda,
           tipo: "saida" as const,
-          descricao: `Venda a R$ ${Number(v.preco_kg_venda).toFixed(2)}/kg para ${v.comprador}`,
+          descricao:
+            `Venda a R$ ${Number(v.preco_kg_venda).toFixed(2)}/kg para ${v.comprador}` +
+            (v.observacoes ? ` (${v.observacoes})` : ""),
           operador: "—",
         })),
       ].sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime());
