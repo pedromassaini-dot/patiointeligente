@@ -59,7 +59,7 @@ function VendaPage() {
     }
     setSaving(true);
     try {
-      await actions.venderLote(lote.id, precoNum, comprador.trim() || "Comprador", pesoNum);
+      await actions.venderLote(lote.id, precoNum, comprador.trim() || "Comprador", pesoNum, observacoes);
       toast.success(
         isTotal
           ? `Venda total do lote ${lote.codigo} registrada.`
