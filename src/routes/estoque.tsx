@@ -93,8 +93,10 @@ function EstoquePage() {
           <option value="estoque">Em estoque</option>
           <option value="estoque_inicial">Estoque Inicial</option>
           <option value="beneficiamento">Beneficiamento</option>
+          <option value="industrializacao">Em industrialização</option>
           <option value="vendido">Vendido</option>
         </select>
+
         <select className={inputCls} value={loc} onChange={(e) => setLoc(e.target.value)}>
           <option value="">Toda localização</option>
           {localizacoes.map((l) => <option key={l} value={l}>{l}</option>)}

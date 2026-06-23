@@ -229,6 +229,39 @@ export type Database = {
           },
         ]
       }
+      industrializadores: {
+        Row: {
+          ativo: boolean
+          cidade: string | null
+          cpf_cnpj: string | null
+          criado_em: string
+          id: string
+          nome: string
+          observacoes: string | null
+          telefone: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          cidade?: string | null
+          cpf_cnpj?: string | null
+          criado_em?: string
+          id?: string
+          nome: string
+          observacoes?: string | null
+          telefone?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          cidade?: string | null
+          cpf_cnpj?: string | null
+          criado_em?: string
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          telefone?: string | null
+        }
+        Relationships: []
+      }
       localizacoes_patio: {
         Row: {
           ativo: boolean
@@ -271,6 +304,7 @@ export type Database = {
           peso_bruto: number
           peso_disponivel: number | null
           preco_kg_compra: number
+          remessa_origem_id: string | null
           status: Database["public"]["Enums"]["status_lote"]
           sublote_pai_id: string | null
         }
@@ -291,6 +325,7 @@ export type Database = {
           peso_bruto: number
           peso_disponivel?: number | null
           preco_kg_compra: number
+          remessa_origem_id?: string | null
           status?: Database["public"]["Enums"]["status_lote"]
           sublote_pai_id?: string | null
         }
@@ -311,6 +346,7 @@ export type Database = {
           peso_bruto?: number
           peso_disponivel?: number | null
           preco_kg_compra?: number
+          remessa_origem_id?: string | null
           status?: Database["public"]["Enums"]["status_lote"]
           sublote_pai_id?: string | null
         }
@@ -341,6 +377,13 @@ export type Database = {
             columns: ["material_id"]
             isOneToOne: false
             referencedRelation: "materiais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lotes_remessa_origem_id_fkey"
+            columns: ["remessa_origem_id"]
+            isOneToOne: false
+            referencedRelation: "remessas_industrializacao"
             referencedColumns: ["id"]
           },
           {
@@ -440,6 +483,168 @@ export type Database = {
             columns: ["lote_id"]
             isOneToOne: false
             referencedRelation: "lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      remessa_lotes: {
+        Row: {
+          criado_em: string
+          custo_proporcional: number
+          id: string
+          lote_id: string
+          peso_enviado: number
+          remessa_id: string
+        }
+        Insert: {
+          criado_em?: string
+          custo_proporcional?: number
+          id?: string
+          lote_id: string
+          peso_enviado: number
+          remessa_id: string
+        }
+        Update: {
+          criado_em?: string
+          custo_proporcional?: number
+          id?: string
+          lote_id?: string
+          peso_enviado?: number
+          remessa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remessa_lotes_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessa_lotes_remessa_id_fkey"
+            columns: ["remessa_id"]
+            isOneToOne: false
+            referencedRelation: "remessas_industrializacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      remessa_retornos: {
+        Row: {
+          aproveitavel: boolean
+          criado_em: string
+          custo_unitario_calculado: number
+          descricao: string
+          id: string
+          lote_gerado_id: string | null
+          material_id: string | null
+          observacoes: string | null
+          peso_retornado: number
+          remessa_id: string
+        }
+        Insert: {
+          aproveitavel?: boolean
+          criado_em?: string
+          custo_unitario_calculado?: number
+          descricao: string
+          id?: string
+          lote_gerado_id?: string | null
+          material_id?: string | null
+          observacoes?: string | null
+          peso_retornado: number
+          remessa_id: string
+        }
+        Update: {
+          aproveitavel?: boolean
+          criado_em?: string
+          custo_unitario_calculado?: number
+          descricao?: string
+          id?: string
+          lote_gerado_id?: string | null
+          material_id?: string | null
+          observacoes?: string | null
+          peso_retornado?: number
+          remessa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remessa_retornos_lote_gerado_id_fkey"
+            columns: ["lote_gerado_id"]
+            isOneToOne: false
+            referencedRelation: "lotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessa_retornos_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materiais"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "remessa_retornos_remessa_id_fkey"
+            columns: ["remessa_id"]
+            isOneToOne: false
+            referencedRelation: "remessas_industrializacao"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      remessas_industrializacao: {
+        Row: {
+          atualizado_em: string
+          codigo: string
+          criado_em: string
+          criado_por: string | null
+          custo_industrializacao: number
+          data_envio: string
+          data_retorno: string | null
+          frete_ida: number
+          frete_volta: number
+          id: string
+          industrializador_id: string
+          observacoes: string | null
+          outros_custos: number
+          status: Database["public"]["Enums"]["status_remessa"]
+        }
+        Insert: {
+          atualizado_em?: string
+          codigo: string
+          criado_em?: string
+          criado_por?: string | null
+          custo_industrializacao?: number
+          data_envio?: string
+          data_retorno?: string | null
+          frete_ida?: number
+          frete_volta?: number
+          id?: string
+          industrializador_id: string
+          observacoes?: string | null
+          outros_custos?: number
+          status?: Database["public"]["Enums"]["status_remessa"]
+        }
+        Update: {
+          atualizado_em?: string
+          codigo?: string
+          criado_em?: string
+          criado_por?: string | null
+          custo_industrializacao?: number
+          data_envio?: string
+          data_retorno?: string | null
+          frete_ida?: number
+          frete_volta?: number
+          id?: string
+          industrializador_id?: string
+          observacoes?: string | null
+          outros_custos?: number
+          status?: Database["public"]["Enums"]["status_remessa"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remessas_industrializacao_industrializador_id_fkey"
+            columns: ["industrializador_id"]
+            isOneToOne: false
+            referencedRelation: "industrializadores"
             referencedColumns: ["id"]
           },
         ]
@@ -545,6 +750,12 @@ export type Database = {
         | "vendido_parcial"
         | "vendido_total"
         | "estoque_inicial"
+        | "em_industrializacao"
+      status_remessa:
+        | "aberta"
+        | "em_industrializacao"
+        | "retornada"
+        | "encerrada"
       tipo_movimentacao:
         | "entrada"
         | "transferencia"
@@ -686,6 +897,13 @@ export const Constants = {
         "vendido_parcial",
         "vendido_total",
         "estoque_inicial",
+        "em_industrializacao",
+      ],
+      status_remessa: [
+        "aberta",
+        "em_industrializacao",
+        "retornada",
+        "encerrada",
       ],
       tipo_movimentacao: [
         "entrada",
