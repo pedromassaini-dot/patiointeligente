@@ -76,6 +76,7 @@ export function StatusBadge({ status }: { status: StatusLote }) {
     vendido: "bg-muted text-muted-foreground border-border",
     vendido_parcial: "bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700",
     estoque_inicial: "bg-sky-500/15 text-sky-700 border-sky-400/40 dark:text-sky-300",
+    industrializacao: "bg-purple-100 text-purple-700 border-purple-300 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-700",
   };
   const label: Record<StatusLote, string> = {
     estoque: "Em estoque",
@@ -83,6 +84,7 @@ export function StatusBadge({ status }: { status: StatusLote }) {
     vendido: "Vendido",
     vendido_parcial: "Venda parcial",
     estoque_inicial: "Estoque Inicial",
+    industrializacao: "Em industrialização",
   };
   return (
     <span
@@ -95,6 +97,7 @@ export function StatusBadge({ status }: { status: StatusLote }) {
     </span>
   );
 }
+
 
 export function LoteCard({
   lote,
