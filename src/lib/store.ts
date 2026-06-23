@@ -37,7 +37,7 @@ export type Fornecedor = {
 
 export type Localizacao = { id: string; nome: string };
 
-export type StatusLote = "estoque" | "beneficiamento" | "vendido" | "vendido_parcial" | "estoque_inicial";
+export type StatusLote = "estoque" | "beneficiamento" | "vendido" | "vendido_parcial" | "estoque_inicial" | "industrializacao";
 type DBStatus = Database["public"]["Enums"]["status_lote"];
 
 function mapStatus(s: DBStatus): StatusLote {
@@ -45,8 +45,10 @@ function mapStatus(s: DBStatus): StatusLote {
   if (s === "vendido_total") return "vendido";
   if (s === "vendido_parcial") return "vendido_parcial";
   if (s === "estoque_inicial") return "estoque_inicial";
+  if (s === "em_industrializacao") return "industrializacao";
   return "estoque";
 }
+
 
 export type Foto = { id: string; url: string };
 
