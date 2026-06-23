@@ -113,6 +113,54 @@ export type Lote = {
   composicao: ComposicaoItem[];
 };
 
+export type Industrializador = {
+  id: string;
+  nome: string;
+  cpfCnpj: string;
+  cidade: string;
+  telefone: string;
+  observacoes: string;
+  ativo: boolean;
+};
+
+export type StatusRemessa = "aberta" | "em_industrializacao" | "retornada" | "encerrada";
+
+export type RemessaLoteEnviado = {
+  id: string;
+  loteId: string;
+  loteCodigo: string;
+  pesoEnviado: number;
+  custoProporcional: number;
+};
+
+export type RemessaRetorno = {
+  id: string;
+  materialId: string | null;
+  descricao: string;
+  pesoRetornado: number;
+  aproveitavel: boolean;
+  custoUnitarioCalculado: number;
+  loteGeradoId: string | null;
+  observacoes: string;
+};
+
+export type Remessa = {
+  id: string;
+  codigo: string;
+  dataEnvio: string;
+  dataRetorno: string | null;
+  industrializadorId: string;
+  observacoes: string;
+  status: StatusRemessa;
+  custoIndustrializacao: number;
+  freteIda: number;
+  freteVolta: number;
+  outrosCustos: number;
+  lotesEnviados: RemessaLoteEnviado[];
+  retornos: RemessaRetorno[];
+  criadoEm: string;
+};
+
 type State = {
   user: User | null;
   authChecked: boolean;
@@ -124,6 +172,8 @@ type State = {
   localizacoes: Localizacao[];
   lotes: Lote[];
   historico: HistoricoLote[];
+  industrializadores: Industrializador[];
+  remessas: Remessa[];
 };
 
 let state: State = {
@@ -137,7 +187,10 @@ let state: State = {
   localizacoes: [],
   lotes: [],
   historico: [],
+  industrializadores: [],
+  remessas: [],
 };
+
 
 const listeners = new Set<() => void>();
 
