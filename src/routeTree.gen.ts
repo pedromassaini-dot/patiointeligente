@@ -11,10 +11,12 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VendaRouteImport } from './routes/venda'
 import { Route as TiposRouteImport } from './routes/tipos'
+import { Route as RemessasRouteImport } from './routes/remessas'
 import { Route as OperadorRouteImport } from './routes/operador'
 import { Route as NovoLoteRouteImport } from './routes/novo-lote'
 import { Route as NovoEstoqueInicialRouteImport } from './routes/novo-estoque-inicial'
 import { Route as MovimentacoesRouteImport } from './routes/movimentacoes'
+import { Route as IndustrializadoresRouteImport } from './routes/industrializadores'
 import { Route as GestorRouteImport } from './routes/gestor'
 import { Route as FornecedoresRouteImport } from './routes/fornecedores'
 import { Route as ExpedicaoRouteImport } from './routes/expedicao'
@@ -22,6 +24,8 @@ import { Route as EstoqueRouteImport } from './routes/estoque'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BeneficiamentoRouteImport } from './routes/beneficiamento'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as RemessasNovaRouteImport } from './routes/remessas.nova'
+import { Route as RemessasIdRouteImport } from './routes/remessas.$id'
 import { Route as LoteIdRouteImport } from './routes/lote.$id'
 
 const VendaRoute = VendaRouteImport.update({
@@ -32,6 +36,11 @@ const VendaRoute = VendaRouteImport.update({
 const TiposRoute = TiposRouteImport.update({
   id: '/tipos',
   path: '/tipos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RemessasRoute = RemessasRouteImport.update({
+  id: '/remessas',
+  path: '/remessas',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OperadorRoute = OperadorRouteImport.update({
@@ -52,6 +61,11 @@ const NovoEstoqueInicialRoute = NovoEstoqueInicialRouteImport.update({
 const MovimentacoesRoute = MovimentacoesRouteImport.update({
   id: '/movimentacoes',
   path: '/movimentacoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndustrializadoresRoute = IndustrializadoresRouteImport.update({
+  id: '/industrializadores',
+  path: '/industrializadores',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GestorRoute = GestorRouteImport.update({
@@ -89,6 +103,16 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RemessasNovaRoute = RemessasNovaRouteImport.update({
+  id: '/nova',
+  path: '/nova',
+  getParentRoute: () => RemessasRoute,
+} as any)
+const RemessasIdRoute = RemessasIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => RemessasRoute,
+} as any)
 const LoteIdRoute = LoteIdRouteImport.update({
   id: '/lote/$id',
   path: '/lote/$id',
@@ -103,13 +127,17 @@ export interface FileRoutesByFullPath {
   '/expedicao': typeof ExpedicaoRoute
   '/fornecedores': typeof FornecedoresRoute
   '/gestor': typeof GestorRoute
+  '/industrializadores': typeof IndustrializadoresRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-estoque-inicial': typeof NovoEstoqueInicialRoute
   '/novo-lote': typeof NovoLoteRoute
   '/operador': typeof OperadorRoute
+  '/remessas': typeof RemessasRouteWithChildren
   '/tipos': typeof TiposRoute
   '/venda': typeof VendaRoute
   '/lote/$id': typeof LoteIdRoute
+  '/remessas/$id': typeof RemessasIdRoute
+  '/remessas/nova': typeof RemessasNovaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -119,13 +147,17 @@ export interface FileRoutesByTo {
   '/expedicao': typeof ExpedicaoRoute
   '/fornecedores': typeof FornecedoresRoute
   '/gestor': typeof GestorRoute
+  '/industrializadores': typeof IndustrializadoresRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-estoque-inicial': typeof NovoEstoqueInicialRoute
   '/novo-lote': typeof NovoLoteRoute
   '/operador': typeof OperadorRoute
+  '/remessas': typeof RemessasRouteWithChildren
   '/tipos': typeof TiposRoute
   '/venda': typeof VendaRoute
   '/lote/$id': typeof LoteIdRoute
+  '/remessas/$id': typeof RemessasIdRoute
+  '/remessas/nova': typeof RemessasNovaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -136,13 +168,17 @@ export interface FileRoutesById {
   '/expedicao': typeof ExpedicaoRoute
   '/fornecedores': typeof FornecedoresRoute
   '/gestor': typeof GestorRoute
+  '/industrializadores': typeof IndustrializadoresRoute
   '/movimentacoes': typeof MovimentacoesRoute
   '/novo-estoque-inicial': typeof NovoEstoqueInicialRoute
   '/novo-lote': typeof NovoLoteRoute
   '/operador': typeof OperadorRoute
+  '/remessas': typeof RemessasRouteWithChildren
   '/tipos': typeof TiposRoute
   '/venda': typeof VendaRoute
   '/lote/$id': typeof LoteIdRoute
+  '/remessas/$id': typeof RemessasIdRoute
+  '/remessas/nova': typeof RemessasNovaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -154,13 +190,17 @@ export interface FileRouteTypes {
     | '/expedicao'
     | '/fornecedores'
     | '/gestor'
+    | '/industrializadores'
     | '/movimentacoes'
     | '/novo-estoque-inicial'
     | '/novo-lote'
     | '/operador'
+    | '/remessas'
     | '/tipos'
     | '/venda'
     | '/lote/$id'
+    | '/remessas/$id'
+    | '/remessas/nova'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -170,13 +210,17 @@ export interface FileRouteTypes {
     | '/expedicao'
     | '/fornecedores'
     | '/gestor'
+    | '/industrializadores'
     | '/movimentacoes'
     | '/novo-estoque-inicial'
     | '/novo-lote'
     | '/operador'
+    | '/remessas'
     | '/tipos'
     | '/venda'
     | '/lote/$id'
+    | '/remessas/$id'
+    | '/remessas/nova'
   id:
     | '__root__'
     | '/'
@@ -186,13 +230,17 @@ export interface FileRouteTypes {
     | '/expedicao'
     | '/fornecedores'
     | '/gestor'
+    | '/industrializadores'
     | '/movimentacoes'
     | '/novo-estoque-inicial'
     | '/novo-lote'
     | '/operador'
+    | '/remessas'
     | '/tipos'
     | '/venda'
     | '/lote/$id'
+    | '/remessas/$id'
+    | '/remessas/nova'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -203,10 +251,12 @@ export interface RootRouteChildren {
   ExpedicaoRoute: typeof ExpedicaoRoute
   FornecedoresRoute: typeof FornecedoresRoute
   GestorRoute: typeof GestorRoute
+  IndustrializadoresRoute: typeof IndustrializadoresRoute
   MovimentacoesRoute: typeof MovimentacoesRoute
   NovoEstoqueInicialRoute: typeof NovoEstoqueInicialRoute
   NovoLoteRoute: typeof NovoLoteRoute
   OperadorRoute: typeof OperadorRoute
+  RemessasRoute: typeof RemessasRouteWithChildren
   TiposRoute: typeof TiposRoute
   VendaRoute: typeof VendaRoute
   LoteIdRoute: typeof LoteIdRoute
@@ -226,6 +276,13 @@ declare module '@tanstack/react-router' {
       path: '/tipos'
       fullPath: '/tipos'
       preLoaderRoute: typeof TiposRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/remessas': {
+      id: '/remessas'
+      path: '/remessas'
+      fullPath: '/remessas'
+      preLoaderRoute: typeof RemessasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/operador': {
@@ -254,6 +311,13 @@ declare module '@tanstack/react-router' {
       path: '/movimentacoes'
       fullPath: '/movimentacoes'
       preLoaderRoute: typeof MovimentacoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/industrializadores': {
+      id: '/industrializadores'
+      path: '/industrializadores'
+      fullPath: '/industrializadores'
+      preLoaderRoute: typeof IndustrializadoresRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gestor': {
@@ -305,6 +369,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/remessas/nova': {
+      id: '/remessas/nova'
+      path: '/nova'
+      fullPath: '/remessas/nova'
+      preLoaderRoute: typeof RemessasNovaRouteImport
+      parentRoute: typeof RemessasRoute
+    }
+    '/remessas/$id': {
+      id: '/remessas/$id'
+      path: '/$id'
+      fullPath: '/remessas/$id'
+      preLoaderRoute: typeof RemessasIdRouteImport
+      parentRoute: typeof RemessasRoute
+    }
     '/lote/$id': {
       id: '/lote/$id'
       path: '/lote/$id'
@@ -315,6 +393,20 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface RemessasRouteChildren {
+  RemessasIdRoute: typeof RemessasIdRoute
+  RemessasNovaRoute: typeof RemessasNovaRoute
+}
+
+const RemessasRouteChildren: RemessasRouteChildren = {
+  RemessasIdRoute: RemessasIdRoute,
+  RemessasNovaRoute: RemessasNovaRoute,
+}
+
+const RemessasRouteWithChildren = RemessasRoute._addFileChildren(
+  RemessasRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   BeneficiamentoRoute: BeneficiamentoRoute,
@@ -323,10 +415,12 @@ const rootRouteChildren: RootRouteChildren = {
   ExpedicaoRoute: ExpedicaoRoute,
   FornecedoresRoute: FornecedoresRoute,
   GestorRoute: GestorRoute,
+  IndustrializadoresRoute: IndustrializadoresRoute,
   MovimentacoesRoute: MovimentacoesRoute,
   NovoEstoqueInicialRoute: NovoEstoqueInicialRoute,
   NovoLoteRoute: NovoLoteRoute,
   OperadorRoute: OperadorRoute,
+  RemessasRoute: RemessasRouteWithChildren,
   TiposRoute: TiposRoute,
   VendaRoute: VendaRoute,
   LoteIdRoute: LoteIdRoute,
