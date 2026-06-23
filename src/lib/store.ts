@@ -1237,10 +1237,245 @@ export const actions = {
     if (error) throw error;
   },
 
+  // ===== Industrializadores =====
+  async addIndustrializador(i: { nome: string; cpfCnpj?: string; cidade?: string; telefone?: string; observacoes?: string }) {
+    const { error } = await supabase.from("industrializadores").insert({
+      nome: i.nome,
+      cpf_cnpj: i.cpfCnpj || null,
+      cidade: i.cidade || null,
+      telefone: i.telefone || null,
+      observacoes: i.observacoes || null,
+      ativo: true,
+    });
+    if (error) throw error;
+    await loadAll();
+  },
+
+  async updateIndustrializador(id: string, patch: Partial<{ nome: string; cpfCnpj: string; cidade: string; telefone: string; observacoes: string; ativo: boolean }>) {
+    const update: Database["public"]["Tables"]["industrializadores"]["Update"] = {};
+    if (patch.nome !== undefined) update.nome = patch.nome;
+    if (patch.cpfCnpj !== undefined) update.cpf_cnpj = patch.cpfCnpj || null;
+    if (patch.cidade !== undefined) update.cidade = patch.cidade || null;
+    if (patch.telefone !== undefined) update.telefone = patch.telefone || null;
+    if (patch.observacoes !== undefined) update.observacoes = patch.observacoes || null;
+    if (patch.ativo !== undefined) update.ativo = patch.ativo;
+    const { error } = await supabase.from("industrializadores").update(update).eq("id", id);
+    if (error) throw error;
+    await loadAll();
+  },
+
+  // ===== Remessa de Industrialização =====
+  async criarRemessa(input: {
+    industrializadorId: string;
+    dataEnvio: string;
+    observacoes?: string;
+    custoIndustrializacao?: number;
+    freteIda?: number;
+    freteVolta?: number;
+    outrosCustos?: number;
+    loteIds: string[];
+  }): Promise<string> {
+    if (!input.loteIds.length) throw new Error("Selecione pelo menos um lote para enviar.");
+    // Validar lotes
+    const enviados: { loteId: string; codigo: string; pesoEnviado: number; custoProporcional: number }[] = [];
+    for (const loteId of input.loteIds) {
+      const l = state.lotes.find((x) => x.id === loteId);
+      if (!l) throw new Error(`Lote ${loteId} não encontrado`);
+      if (l.consumido || l.pesoDisponivel <= 0) throw new Error(`Lote ${l.codigo} não está disponível.`);
+      if (l.status === "vendido" || l.status === "vendido_parcial") {
+        throw new Error(`Lote ${l.codigo} já foi vendido.`);
+      }
+      const peso = l.pesoDisponivel;
+      const custo = custoFinalKg(l) * peso;
+      enviados.push({ loteId, codigo: l.codigo, pesoEnviado: peso, custoProporcional: custo });
+    }
+
+    const codigo = await nextCodigoRemessa();
+    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+
+    const { data: remessa, error: eRem } = await supabase
+      .from("remessas_industrializacao")
+      .insert({
+        codigo,
+        data_envio: input.dataEnvio,
+        industrializador_id: input.industrializadorId,
+        observacoes: input.observacoes ?? null,
+        status: "em_industrializacao",
+        custo_industrializacao: input.custoIndustrializacao ?? 0,
+        frete_ida: input.freteIda ?? 0,
+        frete_volta: input.freteVolta ?? 0,
+        outros_custos: input.outrosCustos ?? 0,
+        criado_por: userId,
+      })
+      .select()
+      .single();
+    if (eRem) throw new Error(`Erro ao criar remessa: ${eRem.message}`);
+
+    for (const e of enviados) {
+      const { error: eL } = await supabase.from("remessa_lotes").insert({
+        remessa_id: remessa.id,
+        lote_id: e.loteId,
+        peso_enviado: e.pesoEnviado,
+        custo_proporcional: e.custoProporcional,
+      });
+      if (eL) throw eL;
+      const { error: eU } = await supabase
+        .from("lotes")
+        .update({ status: "em_industrializacao", peso_disponivel: 0, consumido: true })
+        .eq("id", e.loteId);
+      if (eU) throw eU;
+      await logAudit(e.loteId, e.codigo, "Envio para industrialização", { remessa: codigo });
+    }
+
+    await loadAll();
+    return remessa.id;
+  },
+
+  async editarCustosRemessa(remessaId: string, patch: { custoIndustrializacao?: number; freteIda?: number; freteVolta?: number; outrosCustos?: number; observacoes?: string }) {
+    const update: Database["public"]["Tables"]["remessas_industrializacao"]["Update"] = {};
+    if (patch.custoIndustrializacao !== undefined) update.custo_industrializacao = patch.custoIndustrializacao;
+    if (patch.freteIda !== undefined) update.frete_ida = patch.freteIda;
+    if (patch.freteVolta !== undefined) update.frete_volta = patch.freteVolta;
+    if (patch.outrosCustos !== undefined) update.outros_custos = patch.outrosCustos;
+    if (patch.observacoes !== undefined) update.observacoes = patch.observacoes || null;
+    const { error } = await supabase.from("remessas_industrializacao").update(update).eq("id", remessaId);
+    if (error) throw error;
+    await loadAll();
+  },
+
+  async registrarRetornoRemessa(
+    remessaId: string,
+    retornos: { materialId: string | null; descricao: string; pesoRetornado: number; aproveitavel: boolean; localizacao: string; observacoes?: string }[]
+  ) {
+    const remessa = state.remessas.find((r) => r.id === remessaId);
+    if (!remessa) throw new Error("Remessa não encontrada");
+    if (remessa.status === "encerrada") throw new Error("Remessa já foi encerrada.");
+    if (!retornos.length) throw new Error("Informe pelo menos um produto retornado.");
+
+    // Custo total da remessa
+    const custoLotes = remessa.lotesEnviados.reduce((a, l) => a + l.custoProporcional, 0);
+    const custoTotal =
+      custoLotes +
+      remessa.custoIndustrializacao +
+      remessa.freteIda +
+      remessa.freteVolta +
+      remessa.outrosCustos;
+    const pesoAproveitavel = retornos
+      .filter((r) => r.aproveitavel && r.pesoRetornado > 0)
+      .reduce((a, r) => a + r.pesoRetornado, 0);
+
+    const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+
+    for (let i = 0; i < retornos.length; i++) {
+      const r = retornos[i];
+      if (r.pesoRetornado <= 0) continue;
+      const custoUnit = r.aproveitavel && pesoAproveitavel > 0 ? custoTotal / pesoAproveitavel : 0;
+
+      let loteGeradoId: string | null = null;
+      if (r.materialId) {
+        const locId = await ensureLocalizacao(r.localizacao || "—");
+        const sufixo = String.fromCharCode(65 + i);
+        const codigoLote = `RET-${remessa.codigo.replace(/^REM-/, "")}-${sufixo}`;
+        const { data: novoLote, error: eL } = await supabase
+          .from("lotes")
+          .insert({
+            codigo_lote: codigoLote,
+            material_id: r.materialId,
+            fornecedor_id: null,
+            peso_bruto: r.pesoRetornado,
+            preco_kg_compra: custoUnit,
+            localizacao_id: locId,
+            status: "recebido",
+            observacoes: `Retorno de ${remessa.codigo}${r.observacoes ? ` — ${r.observacoes}` : ""}`,
+            criado_por: userId,
+            lote_tipo: "normal",
+            peso_disponivel: r.pesoRetornado,
+            consumido: false,
+            remessa_origem_id: remessaId,
+          })
+          .select()
+          .single();
+        if (eL) throw new Error(`Erro ao gerar lote retornado: ${eL.message}`);
+        loteGeradoId = novoLote.id;
+        await logAudit(novoLote.id, codigoLote, "Geração por retorno de industrialização", {
+          remessa: remessa.codigo,
+          custoUnitario: custoUnit,
+          aproveitavel: r.aproveitavel,
+        });
+      }
+
+      const { error: eR } = await supabase.from("remessa_retornos").insert({
+        remessa_id: remessaId,
+        material_id: r.materialId,
+        descricao: r.descricao,
+        peso_retornado: r.pesoRetornado,
+        aproveitavel: r.aproveitavel,
+        custo_unitario_calculado: custoUnit,
+        lote_gerado_id: loteGeradoId,
+        observacoes: r.observacoes ?? null,
+      });
+      if (eR) throw eR;
+    }
+
+    const { error: eUpd } = await supabase
+      .from("remessas_industrializacao")
+      .update({ status: "retornada", data_retorno: new Date().toISOString().slice(0, 10) })
+      .eq("id", remessaId);
+    if (eUpd) throw eUpd;
+
+    await loadAll();
+  },
+
+  async encerrarRemessa(remessaId: string) {
+    const { error } = await supabase
+      .from("remessas_industrializacao")
+      .update({ status: "encerrada" })
+      .eq("id", remessaId);
+    if (error) throw error;
+    await loadAll();
+  },
+
+  async deleteRemessa(remessaId: string) {
+    const remessa = state.remessas.find((r) => r.id === remessaId);
+    if (!remessa) throw new Error("Remessa não encontrada");
+    if (remessa.retornos.length > 0) {
+      throw new Error("Não é possível excluir remessa já retornada. Use 'Encerrar' em vez disso.");
+    }
+    // Reverter lotes enviados
+    for (const e of remessa.lotesEnviados) {
+      const { error: eU } = await supabase
+        .from("lotes")
+        .update({ status: "recebido", peso_disponivel: e.pesoEnviado, consumido: false })
+        .eq("id", e.loteId);
+      if (eU) throw eU;
+    }
+    const { error } = await supabase.from("remessas_industrializacao").delete().eq("id", remessaId);
+    if (error) throw error;
+    await loadAll();
+  },
+
   async refresh() {
     await loadAll();
   },
 };
+
+async function nextCodigoRemessa(): Promise<string> {
+  const { data } = await supabase
+    .from("remessas_industrializacao")
+    .select("codigo")
+    .like("codigo", "REM-%")
+    .order("codigo", { ascending: false });
+  let max = 0;
+  for (const row of data ?? []) {
+    const m = row.codigo.match(/^REM-(\d+)/);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n > max) max = n;
+    }
+  }
+  return `REM-${String(max + 1).padStart(4, "0")}`;
+}
+
 
 // ===== Format helpers =====
 export function fmtBRL(n: number) {
