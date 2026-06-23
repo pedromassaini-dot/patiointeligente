@@ -12,14 +12,17 @@ export const Route = createFileRoute("/remessas/nova")({
 
 function NovaRemessaPage() {
   const navigate = useNavigate();
-  const { industrializadores, lotes, tipos } = useStore((s) => ({
-    industrializadores: s.industrializadores.filter((i) => i.ativo),
-    lotes: s.lotes,
-    tipos: s.tipos,
-  }));
+  const industrializadoresAll = useStore((s) => s.industrializadores);
+  const lotes = useStore((s) => s.lotes);
+  const tipos = useStore((s) => s.tipos);
+
+  const industrializadores = useMemo(
+    () => (industrializadoresAll ?? []).filter((i) => i.ativo),
+    [industrializadoresAll]
+  );
 
   const disponiveis = useMemo(
-    () => lotes.filter((l) => !l.consumido && l.pesoDisponivel > 0 && l.status !== "vendido" && l.status !== "vendido_parcial" && l.status !== "industrializacao"),
+    () => (lotes ?? []).filter((l) => !l.consumido && l.pesoDisponivel > 0 && l.status !== "vendido" && l.status !== "vendido_parcial" && l.status !== "industrializacao"),
     [lotes]
   );
 

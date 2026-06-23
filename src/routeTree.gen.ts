@@ -104,14 +104,14 @@ const RemessasIndexRoute = RemessasIndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const RemessasNovaRoute = RemessasNovaRouteImport.update({
-  id: '/nova',
-  path: '/nova',
-  getParentRoute: () => RemessasRoute,
+  id: '/remessas/nova',
+  path: '/remessas/nova',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const RemessasIdRoute = RemessasIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => RemessasRoute,
+  id: '/remessas/$id',
+  path: '/remessas/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const LoteIdRoute = LoteIdRouteImport.update({
   id: '/lote/$id',
@@ -259,6 +259,8 @@ export interface RootRouteChildren {
   TiposRoute: typeof TiposRoute
   VendaRoute: typeof VendaRoute
   LoteIdRoute: typeof LoteIdRoute
+  RemessasIdRoute: typeof RemessasIdRoute
+  RemessasNovaRoute: typeof RemessasNovaRoute
   RemessasIndexRoute: typeof RemessasIndexRoute
 }
 
@@ -371,17 +373,17 @@ declare module '@tanstack/react-router' {
     }
     '/remessas/nova': {
       id: '/remessas/nova'
-      path: '/nova'
+      path: '/remessas/nova'
       fullPath: '/remessas/nova'
       preLoaderRoute: typeof RemessasNovaRouteImport
-      parentRoute: typeof RemessasRoute
+      parentRoute: typeof rootRouteImport
     }
     '/remessas/$id': {
       id: '/remessas/$id'
-      path: '/$id'
+      path: '/remessas/$id'
       fullPath: '/remessas/$id'
       preLoaderRoute: typeof RemessasIdRouteImport
-      parentRoute: typeof RemessasRoute
+      parentRoute: typeof rootRouteImport
     }
     '/lote/$id': {
       id: '/lote/$id'
@@ -409,6 +411,8 @@ const rootRouteChildren: RootRouteChildren = {
   TiposRoute: TiposRoute,
   VendaRoute: VendaRoute,
   LoteIdRoute: LoteIdRoute,
+  RemessasIdRoute: RemessasIdRoute,
+  RemessasNovaRoute: RemessasNovaRoute,
   RemessasIndexRoute: RemessasIndexRoute,
 }
 export const routeTree = rootRouteImport
