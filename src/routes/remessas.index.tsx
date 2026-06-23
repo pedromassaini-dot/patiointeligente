@@ -5,7 +5,7 @@ import { useStore, fmtBRL, fmtKg, fmtDate, type StatusRemessa } from "@/lib/stor
 import { Plus, Truck, ArrowRight } from "lucide-react";
 import { useMemo } from "react";
 
-export const Route = createFileRoute("/remessas")({
+export const Route = createFileRoute("/remessas/")({
   component: RemessasPage,
 });
 
