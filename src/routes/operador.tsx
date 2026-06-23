@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { PackagePlus, ArrowRightLeft, Hammer, ShoppingCart, LogOut, Factory } from "lucide-react";
+import { PackagePlus, ArrowRightLeft, Hammer, ShoppingCart, LogOut, Factory, FlameKindling } from "lucide-react";
 import { actions, useStore } from "@/lib/store";
 import { useEffect } from "react";
 
@@ -36,7 +36,15 @@ const BOTOES = [
     icon: ShoppingCart,
     cor: "bg-success text-success-foreground",
   },
+  {
+    to: "/remessas",
+    label: "Remessa Industrialização",
+    descricao: "Enviar lotes para fundição",
+    icon: FlameKindling,
+    cor: "bg-purple-600 text-white",
+  },
 ] as const;
+
 
 function OperadorHome() {
   const user = useStore((s) => s.user);
