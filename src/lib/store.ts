@@ -267,6 +267,10 @@ async function loadAll() {
       { data: movs, error: e8 },
       { data: hist },
       { data: composicoes },
+      { data: industrializadores },
+      { data: remessas },
+      { data: remessaLotes },
+      { data: remessaRetornos },
     ] = await Promise.all([
       supabase.from("materiais").select("*").eq("ativo", true).order("nome"),
       supabase.from("fornecedores").select("*").order("nome"),
@@ -278,9 +282,14 @@ async function loadAll() {
       supabase.from("movimentacoes").select("*").order("criado_em"),
       supabase.from("historico_lotes").select("*").order("criado_em", { ascending: false }).limit(200),
       supabase.from("composicao_lotes").select("*").then((r) => ({ data: r.data ?? [], error: null as null })),
+      supabase.from("industrializadores").select("*").order("nome").then((r) => ({ data: r.data ?? [], error: null as null })),
+      supabase.from("remessas_industrializacao").select("*").order("data_envio", { ascending: false }).then((r) => ({ data: r.data ?? [], error: null as null })),
+      supabase.from("remessa_lotes").select("*").then((r) => ({ data: r.data ?? [], error: null as null })),
+      supabase.from("remessa_retornos").select("*").then((r) => ({ data: r.data ?? [], error: null as null })),
     ]);
     const err = e1 || e2 || e3 || e4 || e5 || e6 || e7 || e8;
     if (err) throw err;
+
 
     const locById = new Map((localizacoes ?? []).map((l) => [l.id, l.nome]));
 
