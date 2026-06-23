@@ -439,7 +439,57 @@ async function loadAll() {
         detalhes: h.detalhes as Record<string, unknown> | undefined,
         criadoEm: h.criado_em,
       })),
+      industrializadores: (industrializadores ?? []).map((i) => ({
+        id: i.id,
+        nome: i.nome,
+        cpfCnpj: i.cpf_cnpj ?? "",
+        cidade: i.cidade ?? "",
+        telefone: i.telefone ?? "",
+        observacoes: i.observacoes ?? "",
+        ativo: i.ativo,
+      })),
+      remessas: (remessas ?? []).map((r) => {
+        const lotesCodigoById = new Map((lotes ?? []).map((l) => [l.id, l.codigo_lote]));
+        const lotesEnv = (remessaLotes ?? [])
+          .filter((rl) => rl.remessa_id === r.id)
+          .map((rl) => ({
+            id: rl.id,
+            loteId: rl.lote_id,
+            loteCodigo: lotesCodigoById.get(rl.lote_id) ?? "—",
+            pesoEnviado: Number(rl.peso_enviado),
+            custoProporcional: Number(rl.custo_proporcional),
+          }));
+        const rets = (remessaRetornos ?? [])
+          .filter((rr) => rr.remessa_id === r.id)
+          .map((rr) => ({
+            id: rr.id,
+            materialId: rr.material_id,
+            descricao: rr.descricao,
+            pesoRetornado: Number(rr.peso_retornado),
+            aproveitavel: rr.aproveitavel,
+            custoUnitarioCalculado: Number(rr.custo_unitario_calculado),
+            loteGeradoId: rr.lote_gerado_id,
+            observacoes: rr.observacoes ?? "",
+          }));
+        return {
+          id: r.id,
+          codigo: r.codigo,
+          dataEnvio: r.data_envio,
+          dataRetorno: r.data_retorno,
+          industrializadorId: r.industrializador_id,
+          observacoes: r.observacoes ?? "",
+          status: r.status as StatusRemessa,
+          custoIndustrializacao: Number(r.custo_industrializacao),
+          freteIda: Number(r.frete_ida),
+          freteVolta: Number(r.frete_volta),
+          outrosCustos: Number(r.outros_custos),
+          lotesEnviados: lotesEnv,
+          retornos: rets,
+          criadoEm: r.criado_em,
+        };
+      }),
     }));
+
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Erro ao carregar dados";
     setState((s) => ({ ...s, loading: false, error: msg }));
